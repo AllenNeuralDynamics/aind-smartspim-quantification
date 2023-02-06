@@ -12,10 +12,6 @@ import yaml
 import utils
 import logging
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
 from glob import glob
 from tqdm import tqdm
 from pathlib import Path
@@ -26,7 +22,6 @@ from imlib.IO.cells import get_cells, save_cells
 
 from argschema.fields import Int, Str
 from argschema import ArgSchema, ArgSchemaParser, InputFile
-
 
 PathLike = Union[str, Path]
 
@@ -199,7 +194,7 @@ class quantify(ArgSchemaParser):
         cells = []
             
         print('Saving transformed cell locations to XML')
-        for coord in tqdm(self.cell_transformed, total = len(self.cell_transformed)):
+        for coord in tqdm(cell_transformed, total = len(cell_transformed)):
             
             coord = [dim if dim > 1 else 1.0 for dim in coord]     
             coord_dict = {'x': coord[0], 'y': coord[1], 'z': coord[2]}
