@@ -1,3 +1,3 @@
-# aind-capsule-template
+# aind-SmartSPIM-quantification
 
-Basic structure of a capsule to be customized as needed.
+Code for quantifying single cell counts for whole brain lighsheet imaging. 
