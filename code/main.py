@@ -78,6 +78,18 @@ def main():
     dataset_name = dataset_folder + f"/processed/Quantification/{channel_name}"
     s3_path = f"s3://{bucket_path}/{dataset_name}"
 
+    # Moving process_output.json file
+    process_output_filename = f"{output_folder}/ccf_{channel_name}_process_output.json"
+    s3_path_top_level = (
+        f"s3://{bucket_path}/{dataset_folder}/ccf_{channel_name}_process_output.json"
+    )
+
+    for out in execute_command_helper(
+        f"aws s3 mv {process_output_filename} {s3_path_top_level}"
+    ):
+        print(out)
+
+    # Moving data to the quantification folder
     for out in execute_command_helper(
         f"aws s3 mv --recursive {output_folder} {s3_path}"
     ):

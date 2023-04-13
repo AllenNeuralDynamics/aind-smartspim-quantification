@@ -22,4 +22,8 @@ RUN pip install -U --no-cache-dir \
     argschema==3.0.4 \
     ray==2.3.1 \
     numpy==1.19.5 \
-    pims==0.6.1
+    pims==0.6.1 \
+    xmltodict==0.13.0 \
+    neuroglancer==2.36 \
+    boto3==1.26.112 \
+    git+https://github.com/AllenNeuralDynamics/aind-ng-link.git

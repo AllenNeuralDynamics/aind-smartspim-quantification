@@ -7,6 +7,7 @@ Created on Fri Jan 20 15:55:37 2023
 @modified by: camilo.laiton
 """
 
+import json
 import logging
 import os
 from glob import glob
@@ -23,8 +24,9 @@ from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
 
+from .generate_cff_cell_count import generate_25_um_ccf_cells
 from .quantification_params import QuantificationParams
-from .utils import CellCounts, read_json_as_dict
+from .utils import CellCounts, create_folder, read_json_as_dict
 
 PathLike = Union[str, Path]
 
@@ -116,7 +118,7 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
     return cells
 
 
-def write_transformed_cells(cell_transformed: list, save_path: PathLike):
+def write_transformed_cells(cell_transformed: list, save_path: PathLike) -> str:
     """
     Save transformed cell coordinates to xml for napari compatability
 
@@ -127,8 +129,8 @@ def write_transformed_cells(cell_transformed: list, save_path: PathLike):
 
     Returns
     -------------
-    xml
-        writes an .xml file with registered locations
+    str
+        Path to the generated xml
     """
 
     cells = []
@@ -139,7 +141,9 @@ def write_transformed_cells(cell_transformed: list, save_path: PathLike):
         coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
         cells.append(Cell(coord_dict, "cell"))
 
-    save_cells(cells, os.path.join(save_path, "transformed_cells.xml"))
+    transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")
+    save_cells(cells, transformed_cells_path)
+    return transformed_cells_path
 
 
 def run(
@@ -177,6 +181,14 @@ def run(
     reference_microns_ccf_int: int
         Integer that indicates to which um space the
         downsample image was taken to. Default 25 um.
+
+    Returns
+    ----------
+    csv_path: PathLike
+        Path to the generated csv with cell counts per
+        CCF region
+    transformed_cells_path: PathLike
+        Path to the points in CCF space
     """
 
     # Getting downsample res
@@ -196,9 +208,9 @@ def run(
 
     with pims.open(transformed_res_path) as imgs:
         transform_res = [
-            imgs.frame_shape[1],
+            imgs.frame_shape[-1],
             len(imgs),
-            imgs.frame_shape[0],
+            imgs.frame_shape[-2],
         ]  # ZYX -> XZY
         transform_res_dtype = np.dtype(imgs.pixel_type)
 
@@ -216,7 +228,7 @@ def run(
         cells_transformed.append(warp_pt)
 
     # Writing CSV
-    write_transformed_cells(cells_transformed, save_path)
+    transformed_cells_path = write_transformed_cells(cells_transformed, save_path)
 
     logger.info("Calculating cell counts per brain region and generating CSV")
 
@@ -226,7 +238,10 @@ def run(
     count_df = count.create_counts(cells_transformed)
 
     fname = "cell_count_by_region.csv"
-    count_df.to_csv(os.path.join(save_path, fname))
+    csv_path = os.path.join(save_path, fname)
+    count_df.to_csv(csv_path)
+
+    return csv_path, transformed_cells_path
 
 
 def main():
@@ -258,7 +273,64 @@ def main():
         "reference_microns_ccf": args["reference_microns_ccf"],
     }
 
-    run(**input_params)
+    csv_path, transformed_cells_path = run(**input_params)
+
+    ccf_cells_precomputed_output = os.path.join(
+        args["save_path"], "visualization/ccf_cell_precomputed"
+    )
+    cells_precomputed_output = os.path.join(
+        args["save_path"], "visualization/cell_points_precomputed"
+    )
+
+    # Creating folders
+    create_folder(ccf_cells_precomputed_output)
+    create_folder(cells_precomputed_output)
+
+    # neuroglancer link visualization
+    params = {
+        "ccf_cells_precomputed": {  # Parameters to generate CCF + Cells precomputed format
+            "input_path": csv_path,  # Path where the cell_count.csv is located
+            "output_path": ccf_cells_precomputed_output,  # Path where we want to save the CCF + cell location precomputed
+            "ccf_reference_path": None,  # Path where the CCF reference csv is located, set None to get from tissuecyte
+        },
+        "cells_precomputed": {  # Parameters to generate cell points precomputed format
+            "xml_path": transformed_cells_path,  # Path where the cell points are located
+            "output_precomputed": cells_precomputed_output,  # Path where the precomputed format will be stored
+        },
+        "zarr_path": f"{dataset_path}/processed/CCF_Atlas_Registration/{channel_name}/OMEZarr/image.zarr".replace(
+            "/data/", ""
+        ),  # Path where the 25 um zarr image is stored, output from CCF capsule
+        "output_ng_link": args["save_path"],
+    }
+    logger.info("Generating precomputed formats and visualization link")
+    neuroglancer_link = generate_25_um_ccf_cells(params)
+    json_state = neuroglancer_link.state
+
+    # Updating json to visualize data on S3
+    dataset_path = dataset_path.replace("/data/", "")
+    process_output_filename = f"ccf_{channel_name}_process_output.json"
+    json_state[
+        "ng_link"
+    ] = f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!s3://aind-open-data/{dataset_path}/{process_output_filename}"
+    logger.info(f"Neuroglancer link: {json_state['ng_link']}")
+    # Updating s3 paths of layers
+
+    # Updating S3 cell points
+    cell_points_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/"
+    json_state["layers"][1]["source"] = json_state["layers"][1]["source"].replace(
+        "/results/", cell_points_s3_path
+    )
+
+    # Updating CCF + cells
+    ccf_cells_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/"
+    json_state["layers"][2]["source"] = (
+        json_state["layers"][2]["source"]
+        .replace("/results/", ccf_cells_s3_path)
+        .replace("//", "/")
+    )  # Fixes Segmentation Layer Bug
+
+    with open(f"/results/{process_output_filename}", "w") as outfile:
+        json.dump(json_state, outfile, indent=2)
 
 
 if __name__ == "__main__":

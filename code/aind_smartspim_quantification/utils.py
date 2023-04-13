@@ -206,3 +206,34 @@ def read_json_as_dict(filepath: str) -> dict:
             dictionary = json.load(json_file)
 
     return dictionary
+
+
+def create_folder(dest_dir: str, verbose: bool = False) -> None:
+    """
+    Create new folders.
+
+    Parameters
+    ------------------------
+
+    dest_dir: str
+        Path where the folder will be created if it does not exist.
+
+    verbose: Optional[bool]
+        If we want to show information about the folder status. Default False.
+
+    Raises
+    ------------------------
+
+    OSError:
+        if the folder exists.
+
+    """
+
+    if not (os.path.exists(dest_dir)):
+        try:
+            if verbose:
+                print(f"Creating new directory: {dest_dir}")
+            os.makedirs(dest_dir)
+        except OSError as e:
+            if e.errno != os.errno.EEXIST:
+                raise
