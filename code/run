@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -ex
+
+# This is the master script for the capsule. When you click "Reproducible Run", the code in this file will execute.
+
+# Activate quantification env to solve vtkplotter versioning
+source /opt/conda/etc/profile.d/conda.sh
+conda activate quantification
+
+# Split parameters for argschema'
+
+# Add 6 parameters in the CO panel -> dataset_path, channel_name, intermediate_folder, downsample_res and reference_microns_ccf (in that order)
+
+# Example
+# --dataset_path   ../data/SMARTSPIM_FOLDER_NAME -> Points to where the channels are
+# --channel_name   Ex_445_Em_469
+# --save_path      Path where the results will be stored
+# --intermediate_folder   processed/OMEZarr
+# --downsample_res 3 -> multiscale resolution for the channel
+# --reference_microns_ccf -> reference microns that was used in the CCF alignment
+
+python -u main.py --dataset_path "/data/SmartSPIM_656374_2023-01-27_12-41-55_stitched_2023-01-31_17-28-34" --channel_name "Ex_445_Em_469" --save_path "/results" --intermediate_folder "processed/OMEZarr" --downsample_res 3 --reference_microns_ccf 25
