@@ -119,7 +119,8 @@ class CellCounts:
                 np.array(structure_data[str(structure_id)]["vertices"]),
                 np.array(structure_data[str(structure_id)]["faces"]),
             )
-            return vertices, faces
+
+        return vertices, faces
 
     def reflect_about_midline(self, vertices):
         """
@@ -150,7 +151,62 @@ class CellCounts:
 
         self.structs = hemi_labeled + mid_labeled
 
-    def create_counts(self, cells):
+    def crop_cells(self, cells, micron_res=True, factor=0.98):
+        """
+        Removes cells outside and on the boundary of the CCF
+
+        Parameters
+        ------------------------
+        cells: list
+            list of cell locations after applying registration transformations
+        micron_res: boolean
+            whether the cells have been scaled to mircon resolution or not. will be converted back before returning
+
+        factor: float
+            factor by which you shrink the boundary of the CCF for removing edge cells
+
+        Returns
+        ------------------------
+        cells_out: list
+            list of cells that are within the scaled CCF
+        """
+
+        if not micron_res:
+            cell_list = []
+            for cell in cells:
+                cell_list.append([int(cell["z"]), int(cell["y"]), int(cell["x"])])
+            cells = np.array(cell_list) * self.resolution
+            cells = cells[:, [2, 1, 0]]
+
+        verts, faces = self.get_CCF_mesh_points("997")
+
+        region = vtkplotter.Mesh([verts, faces])
+        com = region.centerOfMass()
+
+        verts_scaled = com + factor * (verts - com)
+        region_scaled = vtkplotter.Mesh([verts_scaled, faces])
+
+        cells_out = region_scaled.insidePoints(cells)
+
+        if not micron_res:
+            cells_out = np.array(cells_out) / self.resolution
+            cells_out = cells_out[:, [2, 1, 0]]
+
+            new_cell_data = []
+            for cell in cells_out:
+                new_cell_data.append(
+                    {
+                        "x": cell[0],
+                        "y": cell[1],
+                        "z": cell[2],
+                    }
+                )
+
+            return new_cell_data
+
+        return cells_out
+
+    def create_counts(self, cells, cropped=True):
         """
         Import list of acronyms of brain regions
 
@@ -158,7 +214,7 @@ class CellCounts:
         ------------------------
         cells: list
             list of cell locations after applying registration transformations
-        Parameters
+        Returns
         ------------------------
         struct_count: df
             dataframe with cell counts for each brain region
@@ -166,6 +222,10 @@ class CellCounts:
 
         # convert cells to np.array() and convert to microns for counting
         cells = np.array(cells) * self.resolution
+
+        # remove cells that are outside the brain or on boarder (added 2023-04-14 NAL)
+        if cropped:
+            self.crop_cells(cells)
 
         # get list of all regions and region IDs from .json file
         self.get_region_lists()

@@ -13,6 +13,8 @@ from ng_link import NgState
 from ng_link.ng_layer import generate_precomputed_cells
 from ng_link.ng_state import get_points_from_xml
 
+from .utils import CellCounts
+
 # IO types
 PathLike = Union[str, Path]
 
@@ -130,6 +132,13 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
 
     # Get cells from XML
     cells = get_points_from_xml(params["cells_precomputed"]["xml_path"])
+    ccf_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # Only keep cells within the atlas (added 2023-04-14 NAL)
+    count = CellCounts(ccf_dir, micron_res)
+    cells = count.crop_cells(cells, micron_res=False)
+    cells = list(cells)
+
     # cells = random.shuffle(cells)
 
     generate_cff_cell_counting(

@@ -104,7 +104,7 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
     Returns
     -------------
     list
-        List with cell locations as tuples (x, y, z)
+        List with cell locations as tuples (x (ML), y (AP), z (DV))
     """
 
     cell_file = glob(os.path.join(seg_path, "*.xml"))[0]
@@ -190,6 +190,7 @@ def run(
     transformed_cells_path: PathLike
         Path to the points in CCF space
     """
+    print(f"input img resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
     ds = 2**downsample_res
@@ -209,9 +210,10 @@ def run(
     with pims.open(transformed_res_path) as imgs:
         transform_res = [
             imgs.frame_shape[-1],
-            len(imgs),
             imgs.frame_shape[-2],
-        ]  # ZYX -> XZY
+            len(imgs),
+        ]  # output is in [ML, DV, AP] which is the same as the input array
+
         transform_res_dtype = np.dtype(imgs.pixel_type)
 
     logger.info(f"Image shape of transformed image: {transform_res}")
@@ -259,13 +261,15 @@ def main():
     metadata_path_res = (
         f"{dataset_path}/{intermediate_folder}/{channel_name}.zarr/0/.zarray"
     )
+
+    print(metadata_path_res)
     input_res = read_json_as_dict(metadata_path_res)["shape"]
 
     # input res is returned in order tczyx, here we use xzy
     input_res = [input_res[-1], input_res[-3], input_res[-2]]
 
     input_params = {
-        "input_res": input_res,  # x z y
+        "input_res": input_res,  # [x (ML), y (DV), z(AP)]
         "detected_cells_xml_path": f"{dataset_path}/processed/Cell_Segmentation/{channel_name}/",
         "ccf_transforms_path": f"{dataset_path}/processed/CCF_Atlas_Registration/{channel_name}/",
         "save_path": args["save_path"],
@@ -326,8 +330,8 @@ def main():
     json_state["layers"][2]["source"] = (
         json_state["layers"][2]["source"]
         .replace("/results/", ccf_cells_s3_path)
-        .replace("//", "/")
-    )  # Fixes Segmentation Layer Bug
+        .replace("/SmartSPIM", "SmartSPIM")
+    )
 
     with open(f"/results/{process_output_filename}", "w") as outfile:
         json.dump(json_state, outfile, indent=2)
