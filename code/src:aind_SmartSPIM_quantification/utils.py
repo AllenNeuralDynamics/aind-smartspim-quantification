@@ -11,7 +11,7 @@ import ray
 import copy
 import json
 import pickle
-import vtkplotter
+import vedo
 
 import numpy as np
 import pandas as pd
@@ -50,7 +50,7 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
         vertices,faces = (np.array(structure_data[str(struct_tup[0])]['vertices']),
                           np.array(structure_data[str(struct_tup[0])]['faces']))
         
-        region = vtkplotter.Mesh([vertices, faces])
+        region = vedo.Mesh([vertices, faces])
         count = len(region.insidePoints(shared_coords).points())
         
         if struct_tup[1] == 'hemi':    
@@ -59,7 +59,7 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             vertices_right = copy.copy(vertices)
             vertices_right[:,0] = vertices_right[:,0]+(5700-vertices_right[:,0])*2
             
-            R_region = vtkplotter.Mesh([vertices_right, faces])
+            R_region = vedo.Mesh([vertices_right, faces])
             R_count = len(R_region.insidePoints(shared_coords).points())
             
             count = L_count + R_count
@@ -162,7 +162,7 @@ class CellCounts():
         shared_coords = ray.put(cells)
         shared_path = ray.put(self.CCF_dir)
         
-        results = [parallel_func.remote(shared_coords, shared_path, self.annot_map[str(s[0])], s)for s in self.structs]
+        results = [parallel_func.remote(shared_coords, shared_path, self.annot_map[str(s[0])], s) for s in self.structs]
         data_out = ray.get(results)
         
         cols = ['Id','Structure','Struct_Info', 'Left', 'Right', 'Total']
