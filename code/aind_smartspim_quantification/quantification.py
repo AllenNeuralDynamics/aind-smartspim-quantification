@@ -316,7 +316,7 @@ def main():
     # Updating json to visualize data on S3
     dataset_path = dataset_path.replace("/data/", "")
     process_output_filename = (
-        "processed/Quantification/{channel_name}/visualization/neuroglancer_config.json"
+        f"processed/Quantification/{channel_name}/visualization/neuroglancer_config.json"
     )
 
     json_state[
