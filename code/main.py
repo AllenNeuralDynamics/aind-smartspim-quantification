@@ -3,11 +3,27 @@ Main file to execute the smartspim segmentation
 in code ocean
 """
 
+import json
+import logging
 import os
 import subprocess
 import sys
+from glob import glob
 
 from aind_smartspim_quantification import quantification
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s : %(message)s",
+    datefmt="%Y-%m-%d %H:%M",
+    handlers=[
+        logging.StreamHandler(),
+        # logging.FileHandler("test.log", "a"),
+    ],
+)
+logging.disable("DEBUG")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
@@ -29,6 +45,33 @@ def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
 
     with open(filepath, mode) as file:
         file.write(txt + "\n")
+
+
+def read_json_as_dict(filepath: str) -> dict:
+    """
+    Reads a json as dictionary.
+
+    Parameters
+    ------------------------
+
+    filepath: PathLike
+        Path where the json is located.
+
+    Returns
+    ------------------------
+
+    dict:
+        Dictionary with the data the json has.
+
+    """
+
+    dictionary = {}
+
+    if os.path.exists(filepath):
+        with open(filepath) as json_file:
+            dictionary = json.load(json_file)
+
+    return dictionary
 
 
 def execute_command_helper(command: str, print_command: bool = False) -> None:
@@ -68,31 +111,36 @@ def main():
     Main function to execute the smartspim quantification
     in code ocean
     """
-    """
-    Main function to execute the smartspim quantification
-    in code ocean
-    """
-    image_path = quantification.main()
-    bucket_path = "aind-open-data"
+    data_folder = os.path.abspath("../data/")
+    processing_manifest_path = glob(f"{data_folder}/processing_manifest_*")[0]
 
-    output_folder = os.path.abspath("../results")
+    if not os.path.exists(processing_manifest_path):
+        raise ValueError("Processing manifest path does not exist!")
 
-    dataset_folder = str(sys.argv[2]).split("/")[2]
-    channel_name = str(sys.argv[4])
+    pipeline_config = read_json_as_dict(processing_manifest_path)
 
-    dataset_name = dataset_folder + f"/processed/Quantification/{channel_name}"
-    s3_path = f"s3://{bucket_path}/{dataset_name}"
+    # Creating the quantification config based on pipeline parameters
+    quantification_config = {
+        "fused_folder": os.path.abspath(
+            f"{pipeline_config['quantification']['fused_folder']}"
+        ),
+        "ccf_registration_folder": os.path.abspath(
+            f"../data/ccf_{pipeline_config['quantification']['channel']}"
+        ),
+        "cell_segmentation_folder": os.path.abspath(
+            f"../data/cell_{pipeline_config['quantification']['channel']}"
+        ),
+        "stitched_s3_path": pipeline_config["stitching"]["s3_path"],
+        "channel_name": pipeline_config["quantification"]["channel"],
+        "save_path": f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}",
+        "downsample_res": pipeline_config["registration"]["input_scale"],
+        "reference_microns_ccf": 25,
+        "bucket_path": pipeline_config["bucket"],
+    }
+    logger.info(f"Provided quantification configuration: {quantification_config}")
+    sys.argv = [sys.argv[0]]
 
-    # Moving data to the quantification folder
-    for out in execute_command_helper(
-        f"aws s3 mv --recursive {output_folder} {s3_path}"
-    ):
-        print(out)
-
-    save_string_to_txt(
-        f"Results of cell quantification saved in: {s3_path}",
-        f"{output_folder}/output_quantification.txt",
-    )
+    image_path = quantification.main(quantification_config)
 
 
 if __name__ == "__main__":

@@ -189,7 +189,7 @@ def run(
     transformed_cells_path: PathLike
         Path to the points in CCF space
     """
-    print(f"input img resolution is {input_res}, and this is considered XZY")
+    logger.info(f"input img resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
     ds = 2 ** downsample_res
@@ -245,27 +245,34 @@ def run(
     return csv_path, transformed_cells_path
 
 
-def main():
+def main(input_data: dict):
     """
-    Main function to execute quantification
+    Main function to run quantification in a single channel
+
+    Parameters
+    -------------
+    input_data: dict
+        Parameters that the quantification capsule needs.
+        These are built using the pipeline configuration.
+
     """
-    mod = ArgSchemaParser(schema_type=QuantificationParams)
+    mod = ArgSchemaParser(schema_type=QuantificationParams, input_data=input_data)
     args = mod.args
 
-    results_folder = os.path.abspath("../results")
-    dataset_path = args[
-        "dataset_path"
-    ]  # "/data/SmartSPIM_656374_2023-01-27_12-41-55_stitched_2023-01-31_17-28-34"
-    channel_name = args["channel_name"]  # "Ex_445_Em_469"
-    intermediate_folder = args["intermediate_folder"]  # "processed/OMEZarr"
-    downsample_res = args["downsample_res"]  # 3
-    reference_microns_ccf = args["reference_microns_ccf"]  # 25
+    dataset_path = os.path.abspath(args["fused_folder"])
 
-    metadata_path_res = (
-        f"{dataset_path}/{intermediate_folder}/{channel_name}.zarr/0/.zarray"
-    )
+    ccf_folder = os.path.abspath(args["ccf_registration_folder"])
 
-    print(metadata_path_res)
+    cell_folder = os.path.abspath(args["cell_segmentation_folder"])
+
+    channel_name = args["channel_name"]
+    downsample_res = args["downsample_res"]
+    reference_microns_ccf = args["reference_microns_ccf"]
+    args["save_path"] = os.path.abspath(args["save_path"])
+    data_folder_path = os.path.abspath("../data")
+
+    metadata_path_res = f"{dataset_path}/{channel_name}.zarr/0/.zarray"
+
     input_res = read_json_as_dict(metadata_path_res)["shape"]
 
     # input res is returned in order tczyx, here we use xzy
@@ -273,12 +280,14 @@ def main():
 
     input_params = {
         "input_res": input_res,  # [x (ML), y (DV), z(AP)]
-        "detected_cells_xml_path": f"{dataset_path}/processed/Cell_Segmentation/{channel_name}/",
-        "ccf_transforms_path": f"{dataset_path}/processed/CCF_Atlas_Registration/{channel_name}/",
+        "detected_cells_xml_path": f"{cell_folder}/",
+        "ccf_transforms_path": f"{ccf_folder}/",
         "save_path": args["save_path"],
         "downsample_res": args["downsample_res"],
         "reference_microns_ccf": args["reference_microns_ccf"],
     }
+
+    create_folder(f"{args['save_path']}/visualization")
 
     csv_path, transformed_cells_path = run(**input_params)
 
@@ -304,42 +313,37 @@ def main():
             "xml_path": transformed_cells_path,  # Path where the cell points are located
             "output_precomputed": cells_precomputed_output,  # Path where the precomputed format will be stored
         },
-        "zarr_path": f"{dataset_path}/processed/CCF_Atlas_Registration/{channel_name}/OMEZarr/image.zarr".replace(
-            "/data/", ""
+        "zarr_path": f"{ccf_folder}/OMEZarr/image.zarr".replace(
+            data_folder_path, ""
         ),  # Path where the 25 um zarr image is stored, output from CCF capsule
         "output_ng_link": args["save_path"],
     }
+
     logger.info("Generating precomputed formats and visualization link")
     neuroglancer_link = generate_25_um_ccf_cells(params)
     json_state = neuroglancer_link.state
 
     # Updating json to visualize data on S3
-    dataset_path = dataset_path.replace("/data/", "")
-    process_output_filename = (
-        f"processed/Quantification/{channel_name}/visualization/neuroglancer_config.json"
-    )
+    dataset_path = args["stitched_s3_path"]
+    process_output_filename = f"processed/Quantification/{channel_name}/visualization/neuroglancer_config.json"
 
     json_state[
         "ng_link"
-    ] = f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!s3://aind-open-data/{dataset_path}/{process_output_filename}"
+    ] = f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
     logger.info(f"Neuroglancer link: {json_state['ng_link']}")
     # Updating s3 paths of layers
 
-    # Updating S3 cell points
-    cell_points_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/"
-    json_state["layers"][1]["source"] = json_state["layers"][1]["source"].replace(
-        "/results/", cell_points_s3_path
-    )
+    # Updating S3 cell points to future S3 path
+    cell_points_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/visualization/cell_points_precomputed"
+    json_state["layers"][1]["source"] = cell_points_s3_path
 
-    # Updating CCF + cells
-    ccf_cells_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/"
-    json_state["layers"][2]["source"] = (
-        json_state["layers"][2]["source"]
-        .replace("/results/", ccf_cells_s3_path)
-        .replace("/SmartSPIM", "SmartSPIM")
-    )
+    # Updating CCF + cells to future S3 Path
+    ccf_cells_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/visualization/ccf_cell_precomputed"
+    json_state["layers"][2]["source"] = ccf_cells_s3_path
 
-    with open(f"/results/visualization/neuroglancer_config.json", "w") as outfile:
+    with open(
+        f"{args['save_path']}/visualization/neuroglancer_config.json", "w"
+    ) as outfile:
         json.dump(json_state, outfile, indent=2)
 
 
