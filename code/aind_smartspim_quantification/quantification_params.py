@@ -1,6 +1,8 @@
+"""
+Defines the parameters used in the quantification script
+"""
 from argschema import ArgSchema
 from argschema.fields import InputDir, Int, Str
-from argschema.schemas import DefaultSchema
 
 
 class QuantificationParams(ArgSchema):
@@ -9,13 +11,11 @@ class QuantificationParams(ArgSchema):
     """
 
     dataset_path = InputDir(
-        required=True,
-        metadata={"description": "Path where the data is located"},
+        required=True, metadata={"description": "Path where the data is located"},
     )
 
     channel_name = Str(
-        required=True,
-        metadata={"description": "Dataset's channel name"},
+        required=True, metadata={"description": "Dataset's channel name"},
     )
 
     save_path = Str(

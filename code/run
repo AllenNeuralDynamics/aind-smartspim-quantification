@@ -19,4 +19,4 @@ conda activate quantification
 # --downsample_res 3 -> multiscale resolution for the channel
 # --reference_microns_ccf -> reference microns that was used in the CCF alignment
 
-python -u main.py --dataset_path /data/"$1" --channel_name $2 --save_path "/results" --intermediate_folder "processed/stitching/OMEZarr" --downsample_res 3 --reference_microns_ccf 25
+python -u main.py --dataset_path /data/"$1" --channel_name $2 --save_path $3 --intermediate_folder $4 --downsample_res $5 --reference_microns_ccf $6

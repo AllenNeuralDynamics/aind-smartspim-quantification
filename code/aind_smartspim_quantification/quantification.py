@@ -18,8 +18,7 @@ import ants
 import numpy as np
 import pims
 import yaml
-from argschema import ArgSchema, ArgSchemaParser, InputFile
-from argschema.fields import Int, Str
+from argschema import ArgSchemaParser
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
@@ -193,7 +192,7 @@ def run(
     print(f"input img resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
-    ds = 2**downsample_res
+    ds = 2 ** downsample_res
     reg_dims = [dim / ds for dim in input_res]
 
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
@@ -247,9 +246,13 @@ def run(
 
 
 def main():
+    """
+    Main function to execute quantification
+    """
     mod = ArgSchemaParser(schema_type=QuantificationParams)
     args = mod.args
 
+    results_folder = os.path.abspath("../results")
     dataset_path = args[
         "dataset_path"
     ]  # "/data/SmartSPIM_656374_2023-01-27_12-41-55_stitched_2023-01-31_17-28-34"
@@ -312,7 +315,10 @@ def main():
 
     # Updating json to visualize data on S3
     dataset_path = dataset_path.replace("/data/", "")
-    process_output_filename = f"ccf_{channel_name}_process_output.json"
+    process_output_filename = (
+        "processed/Quantification/{channel_name}/visualization/neuroglancer_config.json"
+    )
+
     json_state[
         "ng_link"
     ] = f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!s3://aind-open-data/{dataset_path}/{process_output_filename}"
@@ -333,7 +339,7 @@ def main():
         .replace("/SmartSPIM", "SmartSPIM")
     )
 
-    with open(f"/results/{process_output_filename}", "w") as outfile:
+    with open(f"/results/visualization/neuroglancer_config.json", "w") as outfile:
         json.dump(json_state, outfile, indent=2)
 
 
