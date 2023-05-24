@@ -10,7 +10,6 @@ import boto3
 import neuroglancer
 import pandas as pd
 from ng_link import NgState
-from ng_link.ng_layer import generate_precomputed_cells
 from ng_link.ng_state import get_points_from_xml
 
 from .utils import CellCounts

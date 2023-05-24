@@ -3,6 +3,7 @@ Main file to execute the smartspim segmentation
 in code ocean
 """
 
+import os
 import subprocess
 import sys
 
@@ -70,7 +71,7 @@ def main():
     image_path = quantification.main()
     bucket_path = "aind-open-data"
 
-    output_folder = "/results"
+    output_folder = os.path.abspath("../results")
 
     dataset_folder = str(sys.argv[2]).split("/")[2]
     channel_name = str(sys.argv[4])
@@ -97,7 +98,7 @@ def main():
 
     save_string_to_txt(
         f"Results of cell quantification saved in: {s3_path}",
-        "/root/capsule/results/output_quantification.txt",
+        f"{output_folder}/output_quantification.txt",
     )
 
 
