@@ -192,7 +192,7 @@ def run(
     logger.info(f"input img resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
-    ds = 2 ** downsample_res
+    ds = 2**downsample_res
     reg_dims = [dim / ds for dim in input_res]
 
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
