@@ -1,6 +1,4 @@
-"""
-Defines the parameters used in the quantification script
-"""
+""" Parameters used in the quantification script """
 from argschema import ArgSchema
 from argschema.fields import Int, Str
 

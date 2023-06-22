@@ -23,7 +23,7 @@ from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
 
-from .generate_cff_cell_count import generate_25_um_ccf_cells
+from .generate_ccf_cell_count import generate_25_um_ccf_cells
 from .quantification_params import QuantificationParams
 from .utils import CellCounts, create_folder, read_json_as_dict
 
@@ -189,10 +189,10 @@ def run(
     transformed_cells_path: PathLike
         Path to the points in CCF space
     """
-    logger.info(f"input img resolution is {input_res}, and this is considered XZY")
+    logger.info(f"input image resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
-    ds = 2**downsample_res
+    ds = 2 ** downsample_res
     reg_dims = [dim / ds for dim in input_res]
 
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
@@ -256,6 +256,7 @@ def main(input_data: dict):
         These are built using the pipeline configuration.
 
     """
+
     mod = ArgSchemaParser(schema_type=QuantificationParams, input_data=input_data)
     args = mod.args
 
@@ -265,11 +266,12 @@ def main(input_data: dict):
 
     cell_folder = os.path.abspath(args["cell_segmentation_folder"])
 
-    channel_name = args["channel_name"]
-    downsample_res = args["downsample_res"]
-    reference_microns_ccf = args["reference_microns_ccf"]
+    channel_name = args["channel_name"]  # "Ex_445_Em_469"
+    downsample_res = args["downsample_res"]  # 3
+    reference_microns_ccf = args["reference_microns_ccf"]  # 25
     args["save_path"] = os.path.abspath(args["save_path"])
     data_folder_path = os.path.abspath("../data")
+    results_folder_path = os.path.abspath(f"../results")
 
     metadata_path_res = f"{dataset_path}/{channel_name}.zarr/0/.zarray"
 

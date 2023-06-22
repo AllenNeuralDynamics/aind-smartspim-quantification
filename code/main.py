@@ -135,7 +135,7 @@ def main():
         "save_path": f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}",
         "downsample_res": pipeline_config["registration"]["input_scale"],
         "reference_microns_ccf": 25,
-        "bucket_path": pipeline_config["bucket"],
+        "bucket_path": "aind-open-data",
     }
     logger.info(f"Provided quantification configuration: {quantification_config}")
     sys.argv = [sys.argv[0]]

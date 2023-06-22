@@ -15,11 +15,11 @@ import pickle
 import numpy as np
 import pandas as pd
 import ray
-import vedo
+import vtkplotter
 
 # initialize for multiprocessing
 if not ray.is_initialized():
-    ray.init(ignore_reinit_error=True, _plasma_directory=os.path.abspath("../scratch/"))
+    ray.init(num_cpus=os.cpu_count(), ignore_reinit_error=True)
 
 
 @ray.remote
@@ -54,8 +54,8 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             np.array(structure_data[str(struct_tup[0])]["faces"]),
         )
 
-        region = vedo.Mesh([vertices, faces])
-        count = len(region.inside_points(shared_coords).points())
+        region = vtkplotter.Mesh([vertices, faces])
+        count = len(region.insidePoints(shared_coords))  # .points())
 
         if struct_tup[1] == "hemi":
             L_count = copy.copy(count)
@@ -65,8 +65,8 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
                 vertices_right[:, 0] + (5700 - vertices_right[:, 0]) * 2
             )
 
-            R_region = vedo.Mesh([vertices_right, faces])
-            R_count = len(R_region.inside_points(shared_coords).points())
+            R_region = vtkplotter.Mesh([vertices_right, faces])
+            R_count = len(R_region.insidePoints(shared_coords))  # .points())
 
             count = L_count + R_count
 
@@ -91,16 +91,15 @@ class CellCounts:
 
     def __init__(self, ccf_dir: str, resolution: int = 25):
         """
-        Initialization method of the CellCounts class
+        Constructor
 
         Parameters
-        ------------
+        ----------
         ccf_dir: str
-            Path where the CCF directory with the
-            meshes is located
+            Path where we can find the CCF meshes
 
         resolution: int
-            CCF atlas resolution in microns
+            CCF resolution in microns
         """
         self.resolution = resolution
         self.annot_map = self.get_annotation_map(
@@ -192,13 +191,13 @@ class CellCounts:
 
         verts, faces = self.get_CCF_mesh_points("997")
 
-        region = vedo.Mesh([verts, faces])
+        region = vtkplotter.Mesh([verts, faces])
         com = region.centerOfMass()
 
         verts_scaled = com + factor * (verts - com)
-        region_scaled = vedo.Mesh([verts_scaled, faces])
+        region_scaled = vtkplotter.Mesh([verts_scaled, faces])
 
-        cells_out = region_scaled.inside_points(cells).points()
+        cells_out = region_scaled.insidePoints(cells)
 
         if not micron_res:
             cells_out = np.array(cells_out) / self.resolution
