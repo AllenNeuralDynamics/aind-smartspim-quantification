@@ -22,7 +22,7 @@ RUN pip install -U --no-cache-dir \
     antspyx==0.3.8 \
     argschema==3.0.4 \
     ray==2.3.1 \
-    numpy==1.19.5 \
+    #numpy==1.19.5 \
     pims==0.6.1 \
     xmltodict==0.13.0 \
     neuroglancer==2.36 \
