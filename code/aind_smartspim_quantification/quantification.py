@@ -327,7 +327,7 @@ def main(input_data: dict):
 
     # Updating json to visualize data on S3
     dataset_path = args["stitched_s3_path"]
-    process_output_filename = f"processed/Quantification/{channel_name}/visualization/neuroglancer_config.json"
+    process_output_filename = f"image_cell_quantification/{channel_name}/visualization/neuroglancer_config.json"
 
     json_state[
         "ng_link"
@@ -336,11 +336,11 @@ def main(input_data: dict):
     # Updating s3 paths of layers
 
     # Updating S3 cell points to future S3 path
-    cell_points_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/visualization/cell_points_precomputed"
+    cell_points_s3_path = f"{dataset_path}/image_cell_quantification/{channel_name}/visualization/cell_points_precomputed"
     json_state["layers"][1]["source"] = cell_points_s3_path
 
     # Updating CCF + cells to future S3 Path
-    ccf_cells_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/visualization/ccf_cell_precomputed"
+    ccf_cells_s3_path = f"{dataset_path}/image_cell_quantification/{channel_name}/visualization/ccf_cell_precomputed"
     json_state["layers"][2]["source"] = ccf_cells_s3_path
 
     with open(
