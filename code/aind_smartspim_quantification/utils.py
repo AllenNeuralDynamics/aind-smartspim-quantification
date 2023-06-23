@@ -98,7 +98,7 @@ class CellCounts:
         ccf_dir: str
             Path where the CCF directory with the
             meshes is located
-        
+
         resolution: int
             CCF atlas resolution in microns
         """
@@ -207,7 +207,11 @@ class CellCounts:
             new_cell_data = []
             for cell in cells_out:
                 new_cell_data.append(
-                    {"x": cell[0], "y": cell[1], "z": cell[2],}
+                    {
+                        "x": cell[0],
+                        "y": cell[1],
+                        "z": cell[2],
+                    }
                 )
 
             return new_cell_data

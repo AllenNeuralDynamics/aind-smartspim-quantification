@@ -80,7 +80,7 @@ def main():
     dataset_folder = str(sys.argv[2]).split("/")[2]
     channel_name = str(sys.argv[4])
 
-    dataset_name = dataset_folder + f"/processed/Quantification/{channel_name}"
+    dataset_name = dataset_folder + f"/image_cell_quantification/{channel_name}"
     s3_path = f"s3://{bucket_path}/{dataset_name}"
 
     # Moving data to the quantification folder

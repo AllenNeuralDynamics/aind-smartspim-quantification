@@ -315,9 +315,7 @@ def main():
 
     # Updating json to visualize data on S3
     dataset_path = dataset_path.replace("/data/", "")
-    process_output_filename = (
-        f"processed/Quantification/{channel_name}/visualization/neuroglancer_config.json"
-    )
+    process_output_filename = f"image_cell_quantification/{channel_name}/visualization/neuroglancer_config.json"
 
     json_state[
         "ng_link"
@@ -326,13 +324,13 @@ def main():
     # Updating s3 paths of layers
 
     # Updating S3 cell points
-    cell_points_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/"
+    cell_points_s3_path = f"{dataset_path}/image_cell_quantification/{channel_name}/"
     json_state["layers"][1]["source"] = json_state["layers"][1]["source"].replace(
         "/results/", cell_points_s3_path
     )
 
     # Updating CCF + cells
-    ccf_cells_s3_path = f"{dataset_path}/processed/Quantification/{channel_name}/"
+    ccf_cells_s3_path = f"{dataset_path}/image_cell_quantification/{channel_name}/"
     json_state["layers"][2]["source"] = (
         json_state["layers"][2]["source"]
         .replace("/results/", ccf_cells_s3_path)
