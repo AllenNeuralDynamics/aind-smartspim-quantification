@@ -76,11 +76,16 @@ def read_transform(reg_path: PathLike) -> tuple:
     ants.transform
         affine transform nonlinear warp field from ants.registration()
     """
-    affine_file = glob(os.path.join(reg_path, "*.mat"))[0]
+    affine_file = os.path.abspath(os.path.join(reg_path, "affine_transforms.mat"))
     affine = ants.read_transform(affine_file)
     affinetx = affine.invert()
 
-    warp_file = glob(os.path.join(reg_path, "*.gz"))[0]
+    warp_file = os.path.abspath(os.path.join(reg_path, "ls_ccf_warp_transforms.nii.gz"))
+
+    # To make it compatible with the older CCF version
+    if not os.path.exists(warp_file):
+        warp_file = os.path.abspath(os.path.join(reg_path, "warp_transforms.nii.gz"))
+
     warp = ants.image_read(warp_file)
     warptx = ants.transform_from_displacement_field(warp)
 
@@ -192,7 +197,7 @@ def run(
     logger.info(f"input image resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
-    ds = 2 ** downsample_res
+    ds = 2**downsample_res
     reg_dims = [dim / ds for dim in input_res]
 
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
