@@ -6,6 +6,7 @@ in code ocean
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from glob import glob
@@ -73,6 +74,27 @@ def read_json_as_dict(filepath: str) -> dict:
 
     return dictionary
 
+def copy_json_to_return(filepath: str) -> None:
+    """
+    Takes json from ./data/ folder and saves it to ../return/
+    so it can be used in cleanup
+
+    Parameters
+    ----------
+    filepath: PathLike
+        Path where the json is located.
+
+    Returns
+    -------
+    None
+
+    """
+    
+    fname = os.path.basename(filepath)
+    return_folder = os.path.abspath('../return/')
+    
+    shutil.copyfile(filepath, os.path.join(return_folder, fname))
+    
 
 def execute_command_helper(command: str, print_command: bool = False) -> None:
     """
@@ -143,7 +165,7 @@ def main():
     sys.argv = [sys.argv[0]]
 
     image_path = quantification.main(quantification_config)
-
+    copy_json_to_return(data_description_path)
 
 if __name__ == "__main__":
     main()
