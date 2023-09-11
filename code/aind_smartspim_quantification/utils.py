@@ -193,7 +193,7 @@ class CellCounts:
         verts, faces = self.get_CCF_mesh_points("997")
 
         region = vedo.Mesh([verts, faces])
-        com = region.centerOfMass()
+        com = region.center_of_mass()
 
         verts_scaled = com + factor * (verts - com)
         region_scaled = vedo.Mesh([verts_scaled, faces])
