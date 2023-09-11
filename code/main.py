@@ -113,11 +113,13 @@ def main():
     """
     data_folder = os.path.abspath("../data/")
     processing_manifest_path = glob(f"{data_folder}/processing_manifest_*")[0]
+    data_description_path = f"{data_folder}/data_decription.json"
 
     if not os.path.exists(processing_manifest_path):
         raise ValueError("Processing manifest path does not exist!")
 
     pipeline_config = read_json_as_dict(processing_manifest_path)
+    data_config = read_json_as_dict(data_description_path)
 
     # Creating the quantification config based on pipeline parameters
     quantification_config = {
@@ -130,7 +132,7 @@ def main():
         "cell_segmentation_folder": os.path.abspath(
             f"../data/cell_{pipeline_config['quantification']['channel']}"
         ),
-        "stitched_s3_path": pipeline_config["stitching"]["s3_path"],
+        "stitched_s3_path": f"s3://aind-open-data/{data_config['name']}",
         "channel_name": pipeline_config["quantification"]["channel"],
         "save_path": f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}",
         "downsample_res": pipeline_config["registration"]["input_scale"],
