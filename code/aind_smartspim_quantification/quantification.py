@@ -340,12 +340,16 @@ def main(input_data: dict):
     logger.info(f"Neuroglancer link: {json_state['ng_link']}")
     # Updating s3 paths of layers
 
+    # Updating S3 registered brain to future S3 path
+    ccf_registered_s3_path = f"zarr://{dataset_path}/image_atlas_alignment/{channel_name}/OMEZarr/image.zarr"
+    json_state["layers"][0]["source"] = ccf_registered_s3_path
+
     # Updating S3 cell points to future S3 path
-    cell_points_s3_path = f"{dataset_path}/image_cell_quantification/{channel_name}/visualization/cell_points_precomputed"
+    cell_points_s3_path = f"precomputed://{dataset_path}/image_cell_quantification/{channel_name}/visualization/cell_points_precomputed"
     json_state["layers"][1]["source"] = cell_points_s3_path
 
     # Updating CCF + cells to future S3 Path
-    ccf_cells_s3_path = f"{dataset_path}/image_cell_quantification/{channel_name}/visualization/ccf_cell_precomputed"
+    ccf_cells_s3_path = f"precomputed://{dataset_path}/image_cell_quantification/{channel_name}/visualization/ccf_cell_precomputed"
     json_state["layers"][2]["source"] = ccf_cells_s3_path
 
     with open(
