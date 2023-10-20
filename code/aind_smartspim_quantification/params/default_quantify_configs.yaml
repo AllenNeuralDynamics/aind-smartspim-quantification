@@ -1,0 +1,4 @@
+# Leave blank to use defaults
+bucket_path: "aind-open-data"
+input_params:
+    reference_microns_ccf: 25

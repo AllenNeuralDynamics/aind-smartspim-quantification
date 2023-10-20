@@ -81,7 +81,7 @@ def generate_cff_cell_counting(
     # get CCF id-struct pairings
     if ccf_reference_path is None:
         ccf_reference_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "ccf_ref.csv"
+            os.path.dirname(os.path.realpath(__file__)), "ccf_files/ccf_ref.csv"
         )
 
     df_ccf = pd.read_csv(ccf_reference_path)

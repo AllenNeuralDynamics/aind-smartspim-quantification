@@ -17,6 +17,8 @@ import pandas as pd
 import ray
 import vedo
 
+from .._shared import PathLike
+
 # initialize for multiprocessing
 if not ray.is_initialized():
     ray.init(ignore_reinit_error=True, _plasma_directory=os.path.abspath("../scratch/"))
@@ -104,9 +106,9 @@ class CellCounts:
         """
         self.resolution = resolution
         self.annot_map = self.get_annotation_map(
-            os.path.join(ccf_dir, "annotation_map.json")
+            os.path.join(ccf_dir, "ccf_filed/annotation_map.json")
         )
-        self.CCF_dir = os.path.join(ccf_dir, "CCF_meshes")
+        self.CCF_dir = os.path.join(ccf_dir, "ccf_filed/CCF_meshes")
         self.region_files = ["non_crossing_structures", "mid_crossing_structures"]
 
     def get_annotation_map(self, annotation_map_path: str):
@@ -252,6 +254,26 @@ class CellCounts:
         cols = ["Id", "Structure", "Struct_Info", "Left", "Right", "Total"]
         df_out = pd.DataFrame(data_out, columns=cols)
         return df_out
+
+def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
+    """
+    Saves a text in a file in the given mode.
+
+    Parameters
+    ------------------------
+    txt: str
+        String to be saved.
+
+    filepath: PathLike
+        Path where the file is located or will be saved.
+
+    mode: str
+        File open mode.
+
+    """
+
+    with open(filepath, mode) as file:
+        file.write(txt + "\n")
 
 
 def read_json_as_dict(filepath: str) -> dict:
