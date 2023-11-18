@@ -55,7 +55,7 @@ def read_transform(reg_path: PathLike) -> tuple:
     return affinetx, warptx
 
 
-def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
+def read_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str) -> list:
     """
     Imports cell locations from segmentation output
 
@@ -80,7 +80,22 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
     cells = []
 
     for cell in file_cells:
-        cells.append((cell.x / ds, cell.z / ds, reg_dims[2] - (cell.y / ds)))
+        if orient == 'spr':
+            cells.append(
+                (
+                    cell.x / ds, 
+                    cell.z / ds, 
+                    reg_dims[2] - (cell.y / ds)
+                )
+            )
+        elif orient == 'sal':
+                cells.append(
+                    (
+                        reg_dims[0] - (cell.x / ds), 
+                        cell.z / ds, 
+                        cell.y / ds
+                    )
+                )
 
     return cells
 
@@ -249,6 +264,7 @@ def cell_quantification(
     save_path: PathLike,
     downsample_res: int,
     reference_microns_ccf: int,
+    orientation: list,
     logger: logging.Logger
 ):
     """
@@ -279,6 +295,10 @@ def cell_quantification(
         Integer that indicates to which um space the
         downsample image was taken to. Default 25 um.
         
+    orientation: list
+        Info on the orientation that the brain was 
+        aquired during imaging
+        
     logger: logging.Logger
         logging object
 
@@ -299,7 +319,8 @@ def cell_quantification(
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
 
     # Getting cell locations and ccf transformations
-    raw_cells = read_xml(detected_cells_xml_path, reg_dims, ds)
+    orient = utils.get_oreientation(orientation)
+    raw_cells = read_xml(detected_cells_xml_path, reg_dims, ds, orient)
     affinetx, warptx = read_transform(ccf_transforms_path)
 
     # Getting transformed res which is the original image in the 3rd multiscale
