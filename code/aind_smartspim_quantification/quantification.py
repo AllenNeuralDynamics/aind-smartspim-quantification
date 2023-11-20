@@ -88,7 +88,8 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str) -> list:
                     reg_dims[2] - (cell.y / ds)
                 )
             )
-        elif orient == 'sal':
+        # spl is not a real orientation. but a bug from early acquisition script
+        elif orient in ['sal', 'spl']:
                 cells.append(
                     (
                         reg_dims[0] - (cell.x / ds), 

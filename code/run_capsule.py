@@ -88,7 +88,6 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     default_config["input_params"]["downsample_res"] = pipeline_config["registration"]["input_scale"]
     default_config["input_params"]["detected_cells_xml_path"] = f"{default_config['cell_segmentation_folder']}/"
     default_config["input_params"]["ccf_transforms_path"] = f"{default_config['ccf_registration_folder']}/"
-    default_config["input_params"]["orientation"] = pipeline_config['acquisition']['axes']
 
     return default_config
 
@@ -151,6 +150,11 @@ def run():
     # add paths to default_config
     default_config["ccf_registration_folder"] = os.path.abspath(f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}")
     default_config["cell_segmentation_folder"] = os.path.abspath(f"{data_folder}/cell_{pipeline_config['quantification']['channel']}")
+    
+    # add orientation information to default_config
+    acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
+    acquisition_configs = utils.read_json_as_dict(acquisition_path)
+    default_config["input_params"]["orientation"] = acquisition_configs["axes"]
     
     # combine configs
     smartspim_config = set_up_pipeline_parameters(
