@@ -255,7 +255,7 @@ class CellCounts:
         df_out = pd.DataFrame(data_out, columns=cols)
         return df_out
 
-def get_oreientation(params):
+def get_orientation(params):
     """
     Fetch aquisition orientation to identify origin for cell locations
     from cellfinder. Important for read_xml function in quantification

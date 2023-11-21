@@ -320,7 +320,7 @@ def cell_quantification(
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
 
     # Getting cell locations and ccf transformations
-    orient = utils.get_oreientation(orientation)
+    orient = utils.get_orientation(orientation)
     raw_cells = read_xml(detected_cells_xml_path, reg_dims, ds, orient)
     affinetx, warptx = read_transform(ccf_transforms_path)
 
