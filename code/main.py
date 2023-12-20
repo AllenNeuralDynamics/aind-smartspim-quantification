@@ -112,7 +112,7 @@ def main():
     in code ocean
     """
     data_folder = os.path.abspath("../data/")
-    processing_manifest_path = glob(f"{data_folder}/processing_manifest_*")[0]
+    processing_manifest_path = glob(f"{data_folder}/segmentation_processing_manifest*.json")[0]
 
     if not os.path.exists(processing_manifest_path):
         raise ValueError("Processing manifest path does not exist!")
