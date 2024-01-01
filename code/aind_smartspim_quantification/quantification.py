@@ -92,7 +92,7 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str) -> list:
         elif orient in ['sal', 'spl']:
                 cells.append(
                     (
-                        reg_dims[0] - (cell.x / ds), 
+                        cell.x / ds, 
                         cell.z / ds, 
                         cell.y / ds
                     )
@@ -231,8 +231,8 @@ def generate_neuroglancer_link(
     json_state = neuroglancer_link.state
 
     # Updating json to visualize data on S3
-    dataset_path = smartspim_config["stitched_s3_path"]
     process_output_filename = f"image_cell_quantification/{smartspim_config['channel_name']}/visualization/neuroglancer_config.json"
+    dataset_path = smartspim_config["stitched_s3_path"]
 
     json_state[
         "ng_link"
