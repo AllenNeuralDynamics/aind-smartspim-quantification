@@ -1,5 +1,5 @@
 metadata_version: 1
-name: Pipeline Version - SmartSPIM Quantification Capsule
+name: Pipeline Version v1.5 - SmartSPIM Quantification Capsule test
 description: A tool for quantifing cells using the Allen CCF Atlas
 tags:
 - SmartSPIM
