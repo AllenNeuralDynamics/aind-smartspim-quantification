@@ -11,18 +11,18 @@ import json
 import logging
 import multiprocessing
 import os
+import time
 from glob import glob
 
 import ants
 import pims
-
+from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
 
-from .utils import utils, logging_utils, generate_25_um_ccf_cells
-
 from ._shared import PathLike
+from .utils import generate_25_um_ccf_cells, utils
 
 
 def read_transform(reg_path: PathLike) -> tuple:
@@ -84,6 +84,7 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
 
     return cells
 
+
 def create_visualization_folders(save_path: PathLike):
     """
     Creates visualization folder structure
@@ -103,9 +104,9 @@ def create_visualization_folders(save_path: PathLike):
         cells will be saved
 
     """
-    
+
     utils.create_folder(f"{save_path}/visualization")
-    
+
     ccf_cells_precomputed_output = os.path.join(
         save_path, "visualization/ccf_cell_precomputed"
     )
@@ -114,17 +115,15 @@ def create_visualization_folders(save_path: PathLike):
     )
 
     # Creating folders
-    
+
     utils.create_folder(ccf_cells_precomputed_output)
     utils.create_folder(cells_precomputed_output)
-    
+
     return ccf_cells_precomputed_output, cells_precomputed_output
-    
+
 
 def write_transformed_cells(
-    cell_transformed: list, 
-    save_path: PathLike,
-    logger: logging.Logger
+    cell_transformed: list, save_path: PathLike, logger: logging.Logger
 ) -> str:
     """
     Save transformed cell coordinates to xml for napari compatability
@@ -133,7 +132,7 @@ def write_transformed_cells(
     -------------
     cell_transformed: list
         list of Cell objects with transformed cell locations
-        
+
     save_path: PathLike
         save path from smartspim_config dict
 
@@ -155,15 +154,16 @@ def write_transformed_cells(
     save_cells(cells, transformed_cells_path)
     return transformed_cells_path
 
+
 def generate_neuroglancer_link(
-        data_folder: PathLike,
-        csv_path: PathLike,
-        transformed_cells_path: PathLike,
-        ccf_cells_precomputed_output: PathLike,
-        cells_precomputed_output: PathLike,
-        smartspim_config: dict,
-        logger: logging.Logger
-        ):
+    data_folder: PathLike,
+    csv_path: PathLike,
+    transformed_cells_path: PathLike,
+    ccf_cells_precomputed_output: PathLike,
+    cells_precomputed_output: PathLike,
+    smartspim_config: dict,
+    logger: logging.Logger,
+):
     """
     Creates and saves neuroglancer link for ccf registered annotations
     and segmentation
@@ -240,7 +240,7 @@ def generate_neuroglancer_link(
         f"{smartspim_config['save_path']}/visualization/neuroglancer_config.json", "w"
     ) as outfile:
         json.dump(json_state, outfile, indent=2)
-    
+
 
 def cell_quantification(
     input_res: list,
@@ -249,7 +249,7 @@ def cell_quantification(
     save_path: PathLike,
     downsample_res: int,
     reference_microns_ccf: int,
-    logger: logging.Logger
+    logger: logging.Logger,
 ):
     """
     Runs quantification of registered cells
@@ -278,7 +278,7 @@ def cell_quantification(
     reference_microns_ccf_int: int
         Integer that indicates to which um space the
         downsample image was taken to. Default 25 um.
-        
+
     logger: logging.Logger
         logging object
 
@@ -328,9 +328,9 @@ def cell_quantification(
         cells_transformed.append(warp_pt)
 
     # Writing CSV
-    transformed_cells_path = write_transformed_cells(cells_transformed,
-                                                     save_path,
-                                                     logger)
+    transformed_cells_path = write_transformed_cells(
+        cells_transformed, save_path, logger
+    )
 
     logger.info("Calculating cell counts per brain region and generating CSV")
 
@@ -350,7 +350,7 @@ def main(
     data_folder: PathLike,
     output_quantified_folder: PathLike,
     intermediate_quantified_folder: PathLike,
-    smartspim_config: dict
+    smartspim_config: dict,
 ):
     """
     This function quantifies detected cells
@@ -373,19 +373,23 @@ def main(
     smartspim_config: dict
         Dictionary with the smartspim configuration
         for that dataset
-    
-    """
 
+    """
+    data_processes = []
     metadata_path_res = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0/.zarray"
     input_res = utils.read_json_as_dict(metadata_path_res)["shape"]
-    
+
     # input res is returned in order tczyx, here we use xzy
-    smartspim_config['input_params']['input_res'] = [input_res[-1], input_res[-3], input_res[-2]]
-    
+    smartspim_config["input_params"]["input_res"] = [
+        input_res[-1],
+        input_res[-3],
+        input_res[-2],
+    ]
+
     metadata_folder = output_quantified_folder.joinpath("metadata")
-    
+
     # Logger pointing everything to the metadata path
-    logger = logging_utils.create_logger(output_log_path=metadata_folder)
+    logger = utils.create_logger(output_log_path=metadata_folder)
     utils.print_system_information(logger)
 
     # Tracking compute resources
@@ -407,27 +411,53 @@ def main(
     profile_process.daemon = True
     profile_process.start()
 
+    start_time = time.time()
     # Calculate cell counts per region
-    csv_path, transformed_cells_path = cell_quantification(logger = logger,
-                                                           **smartspim_config['input_params']
-                                                           )
-    
+    csv_path, transformed_cells_path = cell_quantification(
+        logger=logger, **smartspim_config["input_params"]
+    )
+
     # Create visualization folders
-    ccf_cells_precomputed, cells_precomputed = create_visualization_folders(smartspim_config['save_path'])
-    
-    
+    ccf_cells_precomputed, cells_precomputed = create_visualization_folders(
+        smartspim_config["save_path"]
+    )
+
     # Generate neuroglancer links
     generate_neuroglancer_link(
-        data_folder = data_folder,
-        csv_path = csv_path,
-        transformed_cells_path = transformed_cells_path,
-        ccf_cells_precomputed_output = ccf_cells_precomputed,
-        cells_precomputed_output = cells_precomputed,
-        smartspim_config = smartspim_config,
-        logger = logger
+        data_folder=data_folder,
+        csv_path=csv_path,
+        transformed_cells_path=transformed_cells_path,
+        ccf_cells_precomputed_output=ccf_cells_precomputed,
+        cells_precomputed_output=cells_precomputed,
+        smartspim_config=smartspim_config,
+        logger=logger,
+    )
+
+    end_time = time.time()
+
+    data_processes.append(
+        DataProcess(
+            name=ProcessName.IMAGE_CELL_QUANTIFICATION,
+            software_version="1.5.0",
+            start_date_time=start_time,
+            end_date_time=end_time,
+            input_location=f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0",
+            output_location=str(output_quantified_folder),
+            outputs={"output_folder": str(output_quantified_folder)},
+            code_url="https://github.com/AllenNeuralDynamics/aind-smartspim-quantification",
+            code_version="1.5.0",
+            parameters=smartspim_config,
+            notes="The output folder contains the precomputed format to visualize and count cells per CCF region",
         )
-    
-    
+    )
+
+    utils.generate_processing(
+        data_processes=data_processes,
+        dest_processing=metadata_folder,
+        processor_full_name="Nicholas Lusk",
+        pipeline_version="1.5.0",
+    )
+
     # Getting tracked resources and plotting image
     utils.stop_child_process(profile_process)
 

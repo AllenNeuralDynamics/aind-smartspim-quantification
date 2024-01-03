@@ -4,6 +4,7 @@ in code ocean
 """
 
 import os
+from glob import glob
 from pathlib import Path
 from typing import List, Tuple
 
@@ -11,9 +12,10 @@ from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params import get_yaml
 from aind_smartspim_quantification.utils import utils
 
+
 def get_data_config(
     data_folder: str,
-    processing_manifest_path: str = "processing_manifest.json",
+    processing_manifest_path: str = "segmentation_processing_manifest*.json",
     data_description_path: str = "data_description.json",
 ) -> Tuple:
     """
@@ -56,6 +58,7 @@ def get_data_config(
 
     return derivatives_dict, smartspim_dataset
 
+
 def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     """
     Sets up smartspim stitching parameters that come from the
@@ -81,16 +84,26 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     Dict
         Dictionary with the combined parameters
     """
-    default_config["fused_folder"] = os.path.abspath(f"{pipeline_config['quantification']['fused_folder']}")
+    default_config["fused_folder"] = os.path.abspath(
+        f"{pipeline_config['quantification']['fused_folder']}"
+    )
     default_config["stitched_s3_path"] = pipeline_config["stitching"]["s3_path"]
     default_config["channel_name"] = pipeline_config["quantification"]["channel"]
-    default_config["save_path"] = os.path.abspath(f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}")
-    default_config["input_params"]["downsample_res"] = pipeline_config["registration"]["input_scale"]
-    default_config["input_params"]["detected_cells_xml_path"] = f"{default_config['cell_segmentation_folder']}/"
-    default_config["input_params"]["ccf_transforms_path"] = f"{default_config['ccf_registration_folder']}/"
-
+    default_config["save_path"] = os.path.abspath(
+        f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}"
+    )
+    default_config["input_params"]["downsample_res"] = pipeline_config["registration"][
+        "input_scale"
+    ]
+    default_config["input_params"][
+        "detected_cells_xml_path"
+    ] = f"{default_config['cell_segmentation_folder']}/"
+    default_config["input_params"][
+        "ccf_transforms_path"
+    ] = f"{default_config['ccf_registration_folder']}/"
 
     return default_config
+
 
 def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
     """
@@ -118,12 +131,13 @@ def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
 
     return missing_inputs
 
+
 def run():
     """
     Main function to execute the smartspim quantification
     in code ocean
     """
-    
+
     # Absolute paths of common Code Ocean folders
     data_folder = os.path.abspath("../data")
     results_folder = os.path.abspath("../results")
@@ -139,32 +153,41 @@ def run():
         raise ValueError(
             f"We miss the following files in the capsule input: {missing_files}"
         )
-    
-    pipeline_config, smartspim_dataset_name = get_data_config(data_folder=data_folder) 
-        
-        
+
+    pipeline_config, smartspim_dataset_name = get_data_config(data_folder=data_folder)
+
     # get default configs
     default_config = get_yaml(
-        os.path.abspath("./aind_smartspim_quantification/params/default_quantify_config.yaml")
-    )    
-    
+        os.path.abspath(
+            "./aind_smartspim_quantification/params/default_quantify_config.yaml"
+        )
+    )
+
+    ccf_folder = glob(f"{data_folder}/ccf_*")
+
+    if len(ccf_folder):
+        ccf_folder = ccf_folder[0]
+
     # add paths to default_config
-    default_config["ccf_registration_folder"] = os.path.abspath(f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}")
-    default_config["cell_segmentation_folder"] = os.path.abspath(f"{data_folder}/cell_{pipeline_config['quantification']['channel']}")
-    
+    default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
+    default_config["cell_segmentation_folder"] = os.path.abspath(
+        f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
+    )
+
     # combine configs
     smartspim_config = set_up_pipeline_parameters(
         pipeline_config=pipeline_config, default_config=default_config
-    )    
-        
+    )
+
     smartspim_config["name"] = smartspim_dataset_name
 
     quantification.main(
-        data_folder = Path(data_folder),
-        output_quantified_folder = Path(results_folder),
-        intermediate_quantified_folder = Path(scratch_folder),
-        smartspim_config = smartspim_config
+        data_folder=Path(data_folder),
+        output_quantified_folder=Path(results_folder),
+        intermediate_quantified_folder=Path(scratch_folder),
+        smartspim_config=smartspim_config,
     )
+
 
 if __name__ == "__main__":
     run()

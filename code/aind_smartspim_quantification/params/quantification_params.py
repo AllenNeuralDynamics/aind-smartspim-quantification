@@ -9,7 +9,8 @@ class QuantificationParams(ArgSchema):
     """
 
     fused_folder = Str(
-        required=True, metadata={"description": "Path where the data is located"},
+        required=True,
+        metadata={"description": "Path where the data is located"},
     )
 
     ccf_registration_folder = Str(
@@ -23,7 +24,8 @@ class QuantificationParams(ArgSchema):
     )
 
     channel_name = Str(
-        required=True, metadata={"description": "Dataset's channel name"},
+        required=True,
+        metadata={"description": "Dataset's channel name"},
     )
 
     stitched_s3_path = Str(
@@ -52,5 +54,6 @@ class QuantificationParams(ArgSchema):
     )
 
     bucket_path = Str(
-        required=True, metadata={"description": "Amazon Bucket or Google Bucket name"},
+        required=True,
+        metadata={"description": "Amazon Bucket or Google Bucket name"},
     )
