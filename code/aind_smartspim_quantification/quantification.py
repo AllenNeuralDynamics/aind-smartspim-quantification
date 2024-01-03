@@ -16,13 +16,13 @@ from glob import glob
 
 import ants
 import pims
+import utils
 from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
 
 from ._shared.types import PathLike
-from .utils import generate_25_um_ccf_cells, utils
 
 
 def read_transform(reg_path: PathLike) -> tuple:
@@ -211,7 +211,7 @@ def generate_neuroglancer_link(
     }
 
     logger.info("Generating precomputed formats and visualization link")
-    neuroglancer_link = generate_25_um_ccf_cells(params)
+    neuroglancer_link = utils.generate_25_um_ccf_cells(params)
     json_state = neuroglancer_link.state
 
     # Updating json to visualize data on S3
