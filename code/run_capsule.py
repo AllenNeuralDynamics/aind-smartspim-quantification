@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import List, Tuple
 
 from aind_smartspim_quantification import quantification
-from aind_smartspim_quantification.params import get_yaml
+from aind_smartspim_quantification.params.quantification_params import \
+    get_yaml_config
 from aind_smartspim_quantification.utils import utils
 
 

@@ -1,4 +1,8 @@
 """ Parameters used in the quantification script """
+import os
+from pathlib import Path
+
+import yaml
 from argschema import ArgSchema
 from argschema.fields import Int, Str
 
@@ -57,3 +61,28 @@ class QuantificationParams(ArgSchema):
         required=True,
         metadata={"description": "Amazon Bucket or Google Bucket name"},
     )
+
+
+def get_yaml_config(filename: str) -> dict:
+    """
+    Get default configuration from a YAML file.
+    Parameters
+    ------------------------
+    filename: str
+        String where the YAML file is located.
+    Returns
+    ------------------------
+    Dict
+        Dictionary with the configuration
+    """
+
+    filename = Path(os.path.dirname(__file__)).joinpath(filename)
+
+    config = None
+    try:
+        with open(filename, "r") as stream:
+            config = yaml.safe_load(stream)
+    except Exception as error:
+        print(error)
+
+    return config
