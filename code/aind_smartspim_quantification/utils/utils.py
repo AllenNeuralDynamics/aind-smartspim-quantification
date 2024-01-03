@@ -27,7 +27,7 @@ import vedo
 from aind_data_schema.core.processing import (DataProcess, PipelineProcess,
                                               Processing)
 
-from .._shared import PathLike
+from .._shared.types import PathLike
 
 # initialize for multiprocessing
 if not ray.is_initialized():

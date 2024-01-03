@@ -21,7 +21,7 @@ from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
 
-from ._shared import PathLike
+from ._shared.types import PathLike
 from .utils import generate_25_um_ccf_cells, utils
 
 
