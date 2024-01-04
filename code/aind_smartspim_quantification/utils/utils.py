@@ -116,9 +116,9 @@ class CellCounts:
         """
         self.resolution = resolution
         self.annot_map = self.get_annotation_map(
-            os.path.join(ccf_dir, "ccf_filed/annotation_map.json")
+            os.path.join(ccf_dir, "ccf_files/annotation_map.json")
         )
-        self.CCF_dir = os.path.join(ccf_dir, "ccf_filed/CCF_meshes")
+        self.CCF_dir = os.path.join(ccf_dir, "ccf_files/CCF_meshes")
         self.region_files = ["non_crossing_structures", "mid_crossing_structures"]
 
     def get_annotation_map(self, annotation_map_path: str):
