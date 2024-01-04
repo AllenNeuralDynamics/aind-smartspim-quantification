@@ -641,3 +641,42 @@ def print_system_information(logger: logging.Logger):
     net_io = psutil.net_io_counters()
     logger.info(f"Total Bytes Sent: {get_size(net_io.bytes_sent)}")
     logger.info(f"Total Bytes Received: {get_size(net_io.bytes_recv)}")
+
+
+def create_logger(output_log_path: PathLike):
+    """
+    Creates a logger that generates
+    output logs to a specific path.
+
+    Parameters
+    ------------
+    output_log_path: PathLike
+        Path where the log is going
+        to be stored
+
+    Returns
+    -----------
+    logging.Logger
+        Created logger pointing to
+        the file path.
+    """
+
+    CURR_DATE_TIME = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    LOGS_FILE = f"{output_log_path}/fusion_log_{CURR_DATE_TIME}.log"
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s : %(message)s",
+        datefmt="%Y-%m-%d %H:%M",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(LOGS_FILE, "a"),
+        ],
+        force=True,
+    )
+
+    logging.disable("DEBUG")
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
+    return logger
