@@ -16,7 +16,7 @@ from aind_smartspim_quantification.utils import utils
 
 def get_data_config(
     data_folder: str,
-    processing_manifest_path: str = "segmentation_processing_manifest*.json",
+    processing_manifest_path: str = "segmentation_processing_manifest*",
     data_description_path: str = "data_description.json",
 ) -> Tuple:
     """
@@ -49,7 +49,7 @@ def get_data_config(
     # a single dataset in the pipeline
 
     derivatives_dict = utils.read_json_as_dict(
-        f"{data_folder}/{processing_manifest_path}"
+        glob(f"{data_folder}/{processing_manifest_path}")[0]
     )
     data_description_dict = utils.read_json_as_dict(
         f"{data_folder}/{data_description_path}"
@@ -168,6 +168,9 @@ def run():
 
     if len(ccf_folder):
         ccf_folder = ccf_folder[0]
+
+    print("Pipeline config: ", pipeline_config)
+    print("Data folder contents: ", os.listdir(data_folder))
 
     # add paths to default_config
     default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
