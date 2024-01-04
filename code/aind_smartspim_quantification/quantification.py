@@ -390,6 +390,7 @@ def main(
 
     # Logger pointing everything to the metadata path
     utils.create_folder(dest_dir=str(metadata_folder))
+    utils.create_folder(dest_dir=smartspim_config["save_path"])
     logger = utils.create_logger(output_log_path=metadata_folder)
     utils.print_system_information(logger)
 
