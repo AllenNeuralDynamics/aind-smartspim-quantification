@@ -205,7 +205,7 @@ def generate_neuroglancer_link(
             "output_precomputed": cells_precomputed_output,  # Path where the precomputed format will be stored
         },
         "zarr_path": f"{smartspim_config['ccf_registration_folder']}/OMEZarr/image.zarr".replace(
-            data_folder, ""
+            str(data_folder), ""
         ),  # Path where the 25 um zarr image is stored, output from CCF capsule
         "output_ng_link": smartspim_config["save_path"],
     }
