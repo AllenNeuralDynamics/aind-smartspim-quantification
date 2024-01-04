@@ -20,9 +20,9 @@ from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
-from utils import utils
 
 from ._shared.types import PathLike
+from .utils import utils
 
 
 def read_transform(reg_path: PathLike) -> tuple:
