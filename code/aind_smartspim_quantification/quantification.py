@@ -415,7 +415,9 @@ def main(
     start_time = time.time()
     # Calculate cell counts per region
     csv_path, transformed_cells_path = cell_quantification(
-        logger=logger, **smartspim_config["input_params"]
+        logger=logger,
+        save_path=smartspim_config["save_path"],
+        **smartspim_config["input_params"],
     )
 
     # Create visualization folders
