@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from ._shared.types import PathLike
 from .utils import utils
+from .utils.generate_ccf_cell_count import generate_25_um_ccf_cells
 
 
 def read_transform(reg_path: PathLike) -> tuple:
@@ -211,7 +212,7 @@ def generate_neuroglancer_link(
     }
 
     logger.info("Generating precomputed formats and visualization link")
-    neuroglancer_link = utils.generate_25_um_ccf_cells(params)
+    neuroglancer_link = generate_25_um_ccf_cells(params)
     json_state = neuroglancer_link.state
 
     # Updating json to visualize data on S3
