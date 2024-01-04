@@ -158,9 +158,9 @@ def run():
     pipeline_config, smartspim_dataset_name = get_data_config(data_folder=data_folder)
 
     # get default configs
-    default_config = get_yaml(
+    default_config = get_yaml_config(
         os.path.abspath(
-            "./aind_smartspim_quantification/params/default_quantify_config.yaml"
+            "aind_smartspim_quantification/params/default_quantify_configs.yaml"
         )
     )
 
