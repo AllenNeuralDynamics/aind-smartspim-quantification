@@ -389,6 +389,7 @@ def main(
     metadata_folder = output_quantified_folder.joinpath("metadata")
 
     # Logger pointing everything to the metadata path
+    utils.create_folder(dest_dir=str(metadata_folder))
     logger = utils.create_logger(output_log_path=metadata_folder)
     utils.print_system_information(logger)
 
