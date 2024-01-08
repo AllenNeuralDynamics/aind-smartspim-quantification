@@ -13,6 +13,7 @@ import multiprocessing
 import os
 import time
 from glob import glob
+from pathlib import Path
 
 import ants
 import pims
@@ -294,7 +295,7 @@ def cell_quantification(
     logger.info(f"input image resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
-    ds = 2 ** downsample_res
+    ds = 2**downsample_res
     reg_dims = [dim / ds for dim in input_res]
 
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
@@ -387,7 +388,7 @@ def main(
         input_res[-2],
     ]
 
-    metadata_folder = output_quantified_folder.joinpath("metadata")
+    metadata_folder = Path(smartspim_config["save_path"]).joinpath("metadata")
 
     # Logger pointing everything to the metadata path
     utils.create_folder(dest_dir=str(metadata_folder))
