@@ -11,6 +11,7 @@ import json
 import logging
 import multiprocessing
 import os
+import re
 import time
 from glob import glob
 from pathlib import Path
@@ -227,7 +228,12 @@ def generate_neuroglancer_link(
     # Updating s3 paths of layers
 
     # Updating S3 registered brain to future S3 path
-    ccf_registered_s3_path = f"zarr://{dataset_path}/image_atlas_alignment/{smartspim_config['channel_name']}/OMEZarr/image.zarr"
+    # Getting registration channel name
+    ccf_reg_channel_name = re.search(
+        "(Ex_[0-9]*_Em_[0-9]*)", smartspim_config["input_params"]["ccf_transforms_path"]
+    ).group()
+
+    ccf_registered_s3_path = f"zarr://{dataset_path}/image_atlas_alignment/{ccf_reg_channel_name}/OMEZarr/image.zarr"
     json_state["layers"][0]["source"] = ccf_registered_s3_path
 
     # Updating S3 cell points to future S3 path
