@@ -55,7 +55,7 @@ def read_transform(reg_path: PathLike) -> tuple:
     return affinetx, warptx
 
 
-def read_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str) -> list:
+def read_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str) -> list:
     """
     Imports cell locations from segmentation output
 
@@ -67,6 +67,10 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str) -> list:
         Resolution (pixels) of the image used for segmentation. Orientation [x (ML), z (DV), y (AP)]
     ds: int
         factor by which image for registration was downsampled from input_dims
+    orient: str
+        the orientation the brain was imaged
+    insititute: str
+        the institution that imaged the dataset
 
     Returns
     -------------
@@ -88,15 +92,30 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str) -> list:
                     reg_dims[2] - (cell.y / ds)
                 )
             )
-        # spl is not a real orientation. but a bug from early acquisition script
-        elif orient in ['sal', 'spl']:
-                cells.append(
-                    (
-                        cell.x / ds, 
-                        cell.z / ds, 
-                        cell.y / ds
-                    )
+        elif orient == 'spl' and institute == 'AIBS':
+            cells.append(
+                (
+                    reg_dims[0] - (cell.x / ds), 
+                    cell.z / ds, 
+                    reg_dims[2] - (cell.y / ds)
                 )
+            )
+        elif orient == 'spl' and institute == 'AIND':
+            cells.append(
+                (
+                    cell.x / ds, 
+                    cell.z / ds, 
+                    cell.y / ds
+                )
+            )
+        elif orient == 'sal':
+            cells.append(
+                (
+                    cell.x / ds, 
+                    cell.z / ds, 
+                    cell.y / ds
+                )
+            )
 
     return cells
 
