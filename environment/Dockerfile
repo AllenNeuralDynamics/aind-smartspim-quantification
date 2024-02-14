@@ -19,12 +19,12 @@ RUN pip install -U --no-cache-dir \
     imlib==0.1.3 \
     aind-ng-link==1.0.6 \
     tqdm==4.65.0 \
-    antspyx==0.3.8 \
+    antspyx \
     argschema==3.0.4 \
-    ray==2.3.1 \
-    vtk>=9.2.5 \
+    ray==2.9.0 \
     pims==0.6.1 \
     xmltodict==0.13.0 \
     neuroglancer==2.36 \
     boto3==1.26.112 \
-    vedo==2023.4.6
+    vedo==2023.4.6 \
+    aind-data-schema==0.22.1

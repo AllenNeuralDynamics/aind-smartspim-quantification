@@ -1,6 +1,7 @@
 """
 Script to generate CCF + cell counts
 """
+
 import json
 import os
 from pathlib import Path
@@ -81,7 +82,8 @@ def generate_cff_cell_counting(
     # get CCF id-struct pairings
     if ccf_reference_path is None:
         ccf_reference_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "ccf_files/ccf_ref.csv"
+            Path(os.path.dirname(os.path.realpath(__file__))).parent,
+            "ccf_files/ccf_ref.csv",
         )
 
     df_ccf = pd.read_csv(ccf_reference_path)
@@ -130,7 +132,7 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
 
     # Get cells from XML
     cells = get_points_from_xml(params["cells_precomputed"]["xml_path"])
-    ccf_dir = os.path.dirname(os.path.realpath(__file__))
+    ccf_dir = Path(os.path.dirname(os.path.realpath(__file__))).parent
 
     # Only keep cells within the atlas (added 2023-04-14 NAL)
     count = CellCounts(ccf_dir, micron_res)

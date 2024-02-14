@@ -7,4 +7,4 @@ set -ex
 source /opt/conda/etc/profile.d/conda.sh
 conda activate quantification
 
-python -u main.py "$@"
+python -u run_capsule.py "$@"

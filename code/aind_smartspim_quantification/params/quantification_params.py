@@ -1,4 +1,9 @@
 """ Parameters used in the quantification script """
+
+import os
+from pathlib import Path
+
+import yaml
 from argschema import ArgSchema
 from argschema.fields import Int, Str
 
@@ -9,7 +14,8 @@ class QuantificationParams(ArgSchema):
     """
 
     fused_folder = Str(
-        required=True, metadata={"description": "Path where the data is located"},
+        required=True,
+        metadata={"description": "Path where the data is located"},
     )
 
     ccf_registration_folder = Str(
@@ -23,7 +29,8 @@ class QuantificationParams(ArgSchema):
     )
 
     channel_name = Str(
-        required=True, metadata={"description": "Dataset's channel name"},
+        required=True,
+        metadata={"description": "Dataset's channel name"},
     )
 
     stitched_s3_path = Str(
@@ -52,5 +59,31 @@ class QuantificationParams(ArgSchema):
     )
 
     bucket_path = Str(
-        required=True, metadata={"description": "Amazon Bucket or Google Bucket name"},
+        required=True,
+        metadata={"description": "Amazon Bucket or Google Bucket name"},
     )
+
+
+def get_yaml_config(filename: str) -> dict:
+    """
+    Get default configuration from a YAML file.
+    Parameters
+    ------------------------
+    filename: str
+        String where the YAML file is located.
+    Returns
+    ------------------------
+    Dict
+        Dictionary with the configuration
+    """
+
+    filename = Path(os.path.dirname(__file__)).joinpath(filename)
+
+    config = None
+    try:
+        with open(filename, "r") as stream:
+            config = yaml.safe_load(stream)
+    except Exception as error:
+        print(error)
+
+    return config
