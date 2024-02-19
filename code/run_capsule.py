@@ -56,8 +56,9 @@ def get_data_config(
     )
 
     smartspim_dataset = data_description_dict["name"]
+    institution_abbreviation = data_description_dict["institution"]["abbreviation"]
 
-    return derivatives_dict, smartspim_dataset
+    return derivatives_dict, smartspim_dataset, institution_abbreviation
 
 
 def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
@@ -155,7 +156,9 @@ def run():
             f"We miss the following files in the capsule input: {missing_files}"
         )
 
-    pipeline_config, smartspim_dataset_name = get_data_config(data_folder=data_folder)
+    pipeline_config, smartspim_dataset_name, institute_abbreviation = get_data_config(
+        data_folder=data_folder
+    )
 
     # get default configs
     default_config = get_yaml_config(
@@ -189,6 +192,7 @@ def run():
     )
 
     smartspim_config["name"] = smartspim_dataset_name
+    smartspim_config["institute_abbreviation"] = institute_abbreviation
 
     quantification.main(
         data_folder=Path(data_folder),

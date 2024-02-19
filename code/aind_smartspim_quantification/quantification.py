@@ -272,6 +272,7 @@ def cell_quantification(
     save_path: PathLike,
     downsample_res: int,
     reference_microns_ccf: int,
+    institute_abbreviation: str,
     orientation: list,
     logger: logging.Logger,
 ):
@@ -303,6 +304,9 @@ def cell_quantification(
         Integer that indicates to which um space the
         downsample image was taken to. Default 25 um.
 
+    institute_abbreviation: str
+        Institution abbreviation
+
     orientation: list
         Info on the orientation that the brain was
         aquired during imaging
@@ -328,7 +332,9 @@ def cell_quantification(
 
     # Getting cell locations and ccf transformations
     orient = utils.get_orientation(orientation)
-    raw_cells = read_xml(detected_cells_xml_path, reg_dims, ds, orient)
+    raw_cells = read_xml(
+        detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
+    )
     affinetx, warptx = read_transform(ccf_transforms_path)
 
     # Getting transformed res which is the original image in the 3rd multiscale
@@ -447,6 +453,7 @@ def main(
     csv_path, transformed_cells_path = cell_quantification(
         logger=logger,
         save_path=smartspim_config["save_path"],
+        institute_abbreviation=smartspim_config["institute_abbreviation"],
         **smartspim_config["input_params"],
     )
 
