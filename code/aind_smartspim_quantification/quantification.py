@@ -236,9 +236,9 @@ def generate_neuroglancer_link(
     process_output_filename = f"image_cell_quantification/{smartspim_config['channel_name']}/visualization/neuroglancer_config.json"
     dataset_path = smartspim_config["stitched_s3_path"]
 
-    json_state["ng_link"] = (
-        f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
-    )
+    json_state[
+        "ng_link"
+    ] = f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
     logger.info(f"Neuroglancer link: {json_state['ng_link']}")
     # Updating s3 paths of layers
 

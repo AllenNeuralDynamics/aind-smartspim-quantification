@@ -69,8 +69,13 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
         region = vedo.Mesh([vertices, faces])
         count = len(region.inside_points(shared_coords).points())
 
+        # volume is in um**3 and density in cells/um**3
+        region_vol = region.volume()
+        count_density = count / region_vol
+
         if struct_tup[1] == "hemi":
             L_count = copy.copy(count)
+            L_density = copy.copy(count_density)
 
             vertices_right = copy.copy(vertices)
             vertices_right[:, 0] = (
@@ -79,13 +84,26 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
 
             R_region = vedo.Mesh([vertices_right, faces])
             R_count = len(R_region.inside_points(shared_coords).points())
+            R_density = R_count / region_vol
 
             count = L_count + R_count
+            count_density = (L_density + R_density) / 2
 
         else:
-            L_count, R_count = np.NaN, np.NaN
+            L_count, R_count, L_density, R_density = np.NaN, np.NaN, np.NaN, np.NaN
 
-        data_out = (struct_tup[0], struct, struct_tup[1], L_count, R_count, count)
+        data_out = (
+            struct_tup[0],
+            struct,
+            struct_tup[1],
+            region_vol,
+            L_count,
+            R_count,
+            count,
+            L_density,
+            R_density,
+            count_density,
+        )
 
         return data_out
 
@@ -265,7 +283,18 @@ class CellCounts:
         ]
         data_out = ray.get(results)
 
-        cols = ["Id", "Structure", "Struct_Info", "Left", "Right", "Total"]
+        cols = [
+            "Id",
+            "Structure",
+            "Struct_Info",
+            "Struct_area_um3",
+            "Left",
+            "Right",
+            "Total",
+            "Left_Density",
+            "Right_Density",
+            "Total_Density",
+        ]
         df_out = pd.DataFrame(data_out, columns=cols)
         return df_out
 
