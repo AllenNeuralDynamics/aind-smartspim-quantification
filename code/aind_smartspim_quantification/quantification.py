@@ -58,7 +58,9 @@ def read_transform(reg_path: PathLike) -> tuple:
     return affinetx, warptx
 
 
-def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
+def read_xml(
+    seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str
+) -> list:
     """
     Imports cell locations from segmentation output
 
@@ -70,6 +72,10 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
         Resolution (pixels) of the image used for segmentation. Orientation [x (ML), z (DV), y (AP)]
     ds: int
         factor by which image for registration was downsampled from input_dims
+    orient: str
+        the orientation the brain was imaged
+    insititute: str
+        the institution that imaged the dataset
 
     Returns
     -------------
@@ -83,7 +89,16 @@ def read_xml(seg_path: PathLike, reg_dims: list, ds: int) -> list:
     cells = []
 
     for cell in file_cells:
-        cells.append((cell.x / ds, cell.z / ds, reg_dims[2] - (cell.y / ds)))
+        if orient == "spr":
+            cells.append((cell.x / ds, cell.z / ds, reg_dims[2] - (cell.y / ds)))
+        elif orient == "spl" and institute == "AIBS":
+            cells.append(
+                (reg_dims[0] - (cell.x / ds), cell.z / ds, reg_dims[2] - (cell.y / ds))
+            )
+        elif orient == "spl" and institute == "AIND":
+            cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
+        elif orient == "sal":
+            cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
 
     return cells
 
@@ -218,12 +233,12 @@ def generate_neuroglancer_link(
     json_state = neuroglancer_link.state
 
     # Updating json to visualize data on S3
-    dataset_path = smartspim_config["stitched_s3_path"]
     process_output_filename = f"image_cell_quantification/{smartspim_config['channel_name']}/visualization/neuroglancer_config.json"
+    dataset_path = smartspim_config["stitched_s3_path"]
 
-    json_state[
-        "ng_link"
-    ] = f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
+    json_state["ng_link"] = (
+        f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
+    )
     logger.info(f"Neuroglancer link: {json_state['ng_link']}")
     # Updating s3 paths of layers
 
@@ -257,6 +272,8 @@ def cell_quantification(
     save_path: PathLike,
     downsample_res: int,
     reference_microns_ccf: int,
+    institute_abbreviation: str,
+    orientation: list,
     logger: logging.Logger,
 ):
     """
@@ -287,6 +304,13 @@ def cell_quantification(
         Integer that indicates to which um space the
         downsample image was taken to. Default 25 um.
 
+    institute_abbreviation: str
+        Institution abbreviation
+
+    orientation: list
+        Info on the orientation that the brain was
+        aquired during imaging
+
     logger: logging.Logger
         logging object
 
@@ -307,7 +331,10 @@ def cell_quantification(
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
 
     # Getting cell locations and ccf transformations
-    raw_cells = read_xml(detected_cells_xml_path, reg_dims, ds)
+    orient = utils.get_orientation(orientation)
+    raw_cells = read_xml(
+        detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
+    )
     affinetx, warptx = read_transform(ccf_transforms_path)
 
     # Getting transformed res which is the original image in the 3rd multiscale
@@ -426,6 +453,7 @@ def main(
     csv_path, transformed_cells_path = cell_quantification(
         logger=logger,
         save_path=smartspim_config["save_path"],
+        institute_abbreviation=smartspim_config["institute_abbreviation"],
         **smartspim_config["input_params"],
     )
 
