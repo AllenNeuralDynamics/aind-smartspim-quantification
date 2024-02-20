@@ -287,7 +287,7 @@ class CellCounts:
             "Id",
             "Structure",
             "Struct_Info",
-            "Struct_area_um2",
+            "Struct_area_um3",
             "Left",
             "Right",
             "Total",
