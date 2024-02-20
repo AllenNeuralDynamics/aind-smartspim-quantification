@@ -270,6 +270,36 @@ class CellCounts:
         return df_out
 
 
+def get_orientation(params: dict) -> str:
+    """
+    Fetch aquisition orientation to identify origin for cell locations
+    from cellfinder. Important for read_xml function in quantification
+    script
+
+    Parameters
+    ----------
+    params : dict
+        The orientation information from processing_manifest.json
+
+    Returns
+    -------
+    orient : str
+        string that indicates axes order and direction current available
+        options are:
+            'spr'
+            'sal'
+        But more may be used later
+    """
+
+    orient = ["", "", ""]
+    for vals in params:
+        direction = vals["direction"].lower()
+        dim = vals["dimension"]
+        orient[dim] = direction[0]
+
+    return "".join(orient)
+
+
 def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
     """
     Saves a text in a file in the given mode.
