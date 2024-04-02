@@ -101,7 +101,7 @@ def read_xml(
         elif orient == "sal":
             cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
         elif orient == "rpi":
-            cells.append(reg_dims[2] - (cell.y / ds), cell.z / ds, reg_dims[0] - (cell.x / ds))
+            cells.append((reg_dims[2] - (cell.y / ds), cell.z / ds, reg_dims[0] - (cell.x / ds)))
 
     return cells
 
@@ -385,7 +385,7 @@ def cell_quantification(
     logger.info("Calculating cell counts per brain region and generating CSV")
 
     # count cells 
-    count_df = count.create_counts(cells_transformed)
+    count_df = count.create_counts(transformed_cropped)
 
     fname = "cell_count_by_region.csv"
     csv_path = os.path.join(save_path, fname)
