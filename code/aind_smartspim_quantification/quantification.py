@@ -18,6 +18,7 @@ from pathlib import Path
 
 import ants
 import pims
+import numpy as np
 from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
@@ -99,6 +100,8 @@ def read_xml(
             cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
         elif orient == "sal":
             cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
+        elif orient == "rpi":
+            cells.append(reg_dims[2] - (cell.y / ds), cell.z / ds, reg_dims[0] - (cell.x / ds))
 
     return cells
 
@@ -361,17 +364,27 @@ def cell_quantification(
         affine_pt = affinetx.apply_to_point(scaled_cell)
         warp_pt = warptx.apply_to_point(affine_pt)
         cells_transformed.append(warp_pt)
-
+    
+    # Getting annotation map and meshes path
+    ccf_dir = os.path.dirname(os.path.realpath(__file__))
+    count = utils.CellCounts(ccf_dir, reference_microns_ccf)
+    
+    # removing cells that are outside the brain
+    cells_array = np.array(cells_transformed) * reference_microns_ccf
+    cells_cropped = count.crop_cells(cells_array)
+    
+    transformed_cropped = []
+    for cell in cells_cropped:
+        transformed_cropped.append(cell)
+    
     # Writing CSV
     transformed_cells_path = write_transformed_cells(
-        cells_transformed, save_path, logger
+        transformed_cropped, save_path, logger
     )
 
     logger.info("Calculating cell counts per brain region and generating CSV")
 
-    # Getting annotation map and meshes path
-    ccf_dir = os.path.dirname(os.path.realpath(__file__))
-    count = utils.CellCounts(ccf_dir, reference_microns_ccf)
+    # count cells 
     count_df = count.create_counts(cells_transformed)
 
     fname = "cell_count_by_region.csv"
