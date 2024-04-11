@@ -17,8 +17,8 @@ from glob import glob
 from pathlib import Path
 
 import ants
-import pims
 import numpy as np
+import pims
 from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
@@ -101,7 +101,13 @@ def read_xml(
         elif orient == "sal":
             cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
         elif orient == "rpi":
-            cells.append((reg_dims[2] - (cell.y / ds), cell.z / ds, reg_dims[0] - (cell.x / ds)))
+            cells.append(
+                (
+                    reg_dims[1] - (cell.z / ds),
+                    reg_dims[0] - (cell.x / ds),
+                    reg_dims[2] - (cell.y / ds),
+                )
+            )
 
     return cells
 
@@ -144,7 +150,7 @@ def create_visualization_folders(save_path: PathLike):
 
 
 def write_transformed_cells(
-    cell_transformed: list, save_path: PathLike, logger: logging.Logger
+    cell_transformed: list, orient: str, save_path: PathLike, logger: logging.Logger
 ) -> str:
     """
     Save transformed cell coordinates to xml for napari compatability
@@ -168,7 +174,10 @@ def write_transformed_cells(
     logger.info("Saving transformed cell locations to XML")
     for coord in tqdm(cell_transformed, total=len(cell_transformed)):
         coord = [dim if dim > 1 else 1.0 for dim in coord]
-        coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
+        if orient == "rpi":
+            coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
+        else:
+            coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
         cells.append(Cell(coord_dict, "cell"))
 
     transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")
@@ -345,6 +354,9 @@ def cell_quantification(
     transformed_res_path = f"{ccf_transforms_path}/metadata/downsampled_16.tiff"
     transform_res = None
 
+    if orient == "rpi":
+        reg_dims[0], reg_dims[1] = reg_dims[1], reg_dims[0]
+
     with pims.open(transformed_res_path) as imgs:
         transform_res = [
             imgs.frame_shape[-1],
@@ -364,27 +376,27 @@ def cell_quantification(
         affine_pt = affinetx.apply_to_point(scaled_cell)
         warp_pt = warptx.apply_to_point(affine_pt)
         cells_transformed.append(warp_pt)
-    
+
     # Getting annotation map and meshes path
     ccf_dir = os.path.dirname(os.path.realpath(__file__))
     count = utils.CellCounts(ccf_dir, reference_microns_ccf)
-    
+
     # removing cells that are outside the brain
     cells_array = np.array(cells_transformed) * reference_microns_ccf
-    cells_cropped = count.crop_cells(cells_array)
-    
+    cells_cropped = count.crop_cells(cells_array) / reference_microns_ccf
+
     transformed_cropped = []
     for cell in cells_cropped:
         transformed_cropped.append(cell)
-    
+
     # Writing CSV
     transformed_cells_path = write_transformed_cells(
-        transformed_cropped, save_path, logger
+        transformed_cropped, orient, save_path, logger
     )
 
     logger.info("Calculating cell counts per brain region and generating CSV")
 
-    # count cells 
+    # count cells
     count_df = count.create_counts(transformed_cropped)
 
     fname = "cell_count_by_region.csv"
