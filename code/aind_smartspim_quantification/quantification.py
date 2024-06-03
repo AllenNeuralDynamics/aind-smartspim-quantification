@@ -84,7 +84,7 @@ def read_xml(
         List with cell locations as tuples (x (ML), y (AP), z (DV))
     """
 
-    cell_file = glob(os.path.join(seg_path, "*.xml"))[0]
+    cell_file = glob(os.path.join(seg_path, "classified_*.xml"))[0]
     file_cells = get_cells(cell_file)
 
     cells = []
