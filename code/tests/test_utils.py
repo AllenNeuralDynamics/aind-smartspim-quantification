@@ -6,12 +6,16 @@ Created on Thu Jun  6 13:25:17 2024
 @author: nicholas.lusk
 """
 import os
+import sys
 import unittest
 
 import numpy as np
 import pandas as pd
+import pandas.testing as pd_testing
 
 from pathlib import Path
+
+sys.path.insert(0, '../code')
 
 from aind_smartspim_quantification.utils import utils
 
@@ -22,14 +26,14 @@ class TestSmartspimUtils(unittest.TestCase):
         """Setting up unit test"""
         current_path = Path(os.path.abspath(__file__)).parent
         self.ccf_files = current_path.joinpath(
-            "../aind_smartspim_quantification/"
+            "./resources/"
             )
         self.test_local_json_path = current_path.joinpath(
-                "../resources/local_json.json"
+                "./resources/local_json.json"
             )
         self.test_structureID = 'test'
         self.resolution = 25
-        self.CellCount = utils.CellCount(self.ccf_files, self.resolution)
+        self.CellCounts = utils.CellCounts(self.ccf_files, self.resolution)
         
     def tearDown(self):
         """Tearing down utils unit test"""
@@ -39,8 +43,8 @@ class TestSmartspimUtils(unittest.TestCase):
         Test successful loading of annotation mapping
         """
         
-        expected_result = {"997": "root"}
-        self.assertEqual(self.CellCount.annot_map, expected_result)
+        expected_result = {'1': 'TMv', '512': 'CB'}
+        self.assertEqual(self.CellCounts.annot_map, expected_result)
         
     def test_get_CCF_mesh_points(self):
         """
@@ -60,9 +64,9 @@ class TestSmartspimUtils(unittest.TestCase):
             [0, 1, 3]
         ]
         
-        result_1, result_2 = self.CellCount.get_CCF_mesh_points(self.structureID)
-        self.assertEqual(result_1, expected_result_1)
-        self.assertEqual(result_2, expected_result_2)
+        result_1, result_2 = self.CellCounts.get_CCF_mesh_points(self.test_structureID)
+        self.assertTrue((result_1 == expected_result_1).all())
+        self.assertTrue((result_2 == expected_result_2).all())
         
     def test_reflect_about_midline(self):
         """
@@ -70,8 +74,8 @@ class TestSmartspimUtils(unittest.TestCase):
         """
         
         expected_result = np.array([[5710, 0, 0]])
-        result = self.CellCount.reflect_about_midline(np.array([[5690, 0, 0]]))
-        self.assertAlmostEqual(result, expected_result)
+        result = self.CellCounts.reflect_about_midline(np.array([[5690, 0, 0]]))
+        self.assertTrue((result == expected_result).all())
     
     def test_get_region_lists(self):
         """
@@ -79,38 +83,26 @@ class TestSmartspimUtils(unittest.TestCase):
         """
         
         expected_result = [(1, 'hemi'), (512, 'mid')]
-        self.CellCount.get_region_lists()
-        self.assertEqual(self.CellCount.structs, expected_result)
+        self.CellCounts.get_region_lists()
+        self.assertEqual(self.CellCounts.structs, expected_result)
         
-    def test_crop_cells_micron(self):
+    def test_crop_cells(self):
         """
         Tests method for cell cropping if cells are in micron state space
         """
         
-        expected_result = np.array([[5700, 4072, 7623]], dtype = np.float32)
+        expected_result = np.array(
+            [[5700, 4072, 7623]],
+            dtype = np.float32
+        )
         
         test_pts = [
             [0, 0, 0],
-            [5700, 4072, 7623] 
+            [5700, 4072, 7623]
         ]
         
-        result = self.CellCount.crop_cells(test_pts)
-        self.assertEqual(result, expected_result)
-
-    
-    def test_crop_cells_non_micron(self):
-        """
-        Tests method for cell cropping if cells are not in micron state space
-        """
-        expected_result = np.array([[5700, 4072, 7623]], dtype = np.float32)
-        
-        test_pts = [
-            {"x": 0, "y": 0, "z": 0},
-            {"x": 5700, "y": 4072, "z": 7623}
-        ]
-        
-        result = self.CellCount.crop_cells(test_pts, micron = False)
-        self.assertEqual(result, expected_result)
+        result = self.CellCounts.crop_cells(test_pts)
+        self.assertTrue((result == expected_result).all())
 
     def test_create_counts(self):
         """
@@ -127,19 +119,19 @@ class TestSmartspimUtils(unittest.TestCase):
             "Total": [1, 1],
             "Left_Density": [1 / 63031250.0, np.NaN],
             "Right_Density": [0, np.NaN],
-            "Total_Density": [1 / 63031250.0, 55975232132.2824],
+            "Total_Density": [1 / 63031250.0, 1/55975232132.2824],
         }
         
-        expected_result = pd.DataFrame(example_data)
+        expected_result = pd.DataFrame.from_dict(example_data)
         
         test_pts = [
             [0, 0, 0],
-            [4713, 6677, 7497],
-            [5692, 3593, 11568],
+            [188, 267, 299],
+            [227, 143, 462],
         ]
         
-        result = self.CellCount.create_counts(test_pts)
-        self.assertEqual(result, expected_result)
+        result = self.CellCounts.create_counts(test_pts)
+        pd_testing.assert_frame_equal(result, expected_result)
 
     def test_get_orientation(self):
         """
@@ -165,4 +157,6 @@ class TestSmartspimUtils(unittest.TestCase):
         expected_result = {"some_key": "some_value"}
         result = utils.read_json_as_dict(self.test_local_json_path)
         self.assertEqual(result, expected_result)
-        
+
+if __name__ == "__main__":
+    unittest.main()
