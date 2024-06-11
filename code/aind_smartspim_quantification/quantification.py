@@ -150,7 +150,7 @@ def create_visualization_folders(save_path: PathLike):
 
 
 def write_transformed_cells(
-    cell_transformed: list, orient: str, save_path: PathLike, logger: logging.Logger
+    cell_transformed: list, save_path: PathLike, logger: logging.Logger
 ) -> str:
     """
     Save transformed cell coordinates to xml for napari compatability
@@ -174,10 +174,7 @@ def write_transformed_cells(
     logger.info("Saving transformed cell locations to XML")
     for coord in tqdm(cell_transformed, total=len(cell_transformed)):
         coord = [dim if dim > 1 else 1.0 for dim in coord]
-        if orient == "rpi":
-            coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
-        else:
-            coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
+        coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
         cells.append(Cell(coord_dict, "cell"))
 
     transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")
@@ -391,7 +388,7 @@ def cell_quantification(
 
     # Writing CSV
     transformed_cells_path = write_transformed_cells(
-        transformed_cropped, orient, save_path, logger
+        transformed_cropped, save_path, logger
     )
 
     logger.info("Calculating cell counts per brain region and generating CSV")
@@ -440,6 +437,7 @@ def main(
     input_res = utils.read_json_as_dict(metadata_path_res)["shape"]
 
     # input res is returned in order tczyx, here we use xzy
+    # where z is the imaging axis
     smartspim_config["input_params"]["input_res"] = [
         input_res[-1],
         input_res[-3],

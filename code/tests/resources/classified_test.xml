@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CellCounter_Marker_File>
+  <Image_Properties>
+    <Image_Filename>placeholder.tif</Image_Filename>
+  </Image_Properties>
+  <Marker_Data>
+    <Current_Type>1</Current_Type>
+    <Marker_Type>
+      <Type>2</Type>
+      <Marker>
+        <MarkerX>3072</MarkerX>
+        <MarkerY>412</MarkerY>
+        <MarkerZ>448</MarkerZ>
+      </Marker>
+    </Marker_Type>
+  </Marker_Data>
+</CellCounter_Marker_File>

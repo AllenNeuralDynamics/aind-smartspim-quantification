@@ -27,8 +27,6 @@ import vedo
 from aind_data_schema.core.processing import (DataProcess, PipelineProcess,
                                               Processing)
 
-vedo.core.warnings['points_getter'] = False
-
 from .._shared.types import PathLike
 
 # initialize for multiprocessing
@@ -195,7 +193,7 @@ class CellCounts:
 
         self.structs = hemi_labeled + mid_labeled
 
-    def crop_cells(self, cells, factor=0.98):
+    def crop_cells(self, cells, micron_res=True, factor=0.98):
         """
         Removes cells outside and on the boundary of the CCF
 
@@ -203,6 +201,8 @@ class CellCounts:
         ------------------------
         cells: list
             list of cell locations after applying registration transformations
+        micron_res: boolean
+            whether the cells have been scaled to mircon resolution or not. will be converted back before returning
 
         factor: float
             factor by which you shrink the boundary of the CCF for removing edge cells
@@ -212,6 +212,13 @@ class CellCounts:
         cells_out: list
             list of cells that are within the scaled CCF
         """
+
+        if not micron_res:
+            cell_list = []
+            for cell in cells:
+                cell_list.append([int(cell["z"]), int(cell["y"]), int(cell["x"])])
+            cells = np.array(cell_list) * self.resolution
+            cells = cells[:, [2, 1, 0]]
 
         verts, faces = self.get_CCF_mesh_points("997")
 
@@ -223,6 +230,22 @@ class CellCounts:
 
         cells_out = region_scaled.inside_points(cells).points()
 
+        if not micron_res:
+            cells_out = np.array(cells_out) / self.resolution
+            cells_out = cells_out[:, [2, 1, 0]]
+
+            new_cell_data = []
+            for cell in cells_out:
+                new_cell_data.append(
+                    {
+                        "x": cell[0],
+                        "y": cell[1],
+                        "z": cell[2],
+                    }
+                )
+
+            return new_cell_data
+        
         return cells_out
 
     def create_counts(self, cells, cropped=True):

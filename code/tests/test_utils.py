@@ -15,7 +15,7 @@ import pandas.testing as pd_testing
 
 from pathlib import Path
 
-sys.path.insert(0, '../code')
+sys.path.insert(0, '/Users/nicholas.lusk/Documents/Github/aind-smartspim-quantification/code/')
 
 from aind_smartspim_quantification.utils import utils
 
@@ -86,7 +86,7 @@ class TestSmartspimUtils(unittest.TestCase):
         self.CellCounts.get_region_lists()
         self.assertEqual(self.CellCounts.structs, expected_result)
         
-    def test_crop_cells(self):
+    def test_crop_cells_microns(self):
         """
         Tests method for cell cropping if cells are in micron state space
         """
@@ -103,6 +103,23 @@ class TestSmartspimUtils(unittest.TestCase):
         
         result = self.CellCounts.crop_cells(test_pts)
         self.assertTrue((result == expected_result).all())
+
+    def test_crop_cells_non_microns(self):
+        """
+        Tests method for cell cropping if cells are not in micron state space
+        """
+        
+        expected_result = [
+            {"x": 299, "y": 267, "z": 188},
+        ]
+        
+        test_pts = [
+            {"x": 0, "y": 0, "z": 0},
+            {"x": 188, "y": 267, "z": 299},
+        ]
+        
+        result = self.CellCounts.crop_cells(test_pts, micron_res = False)
+        self.assertListEqual(result, expected_result)
 
     def test_create_counts(self):
         """
@@ -124,6 +141,7 @@ class TestSmartspimUtils(unittest.TestCase):
         
         expected_result = pd.DataFrame.from_dict(example_data)
         
+        # locations have one outside brain and one in each region
         test_pts = [
             [0, 0, 0],
             [188, 267, 299],
