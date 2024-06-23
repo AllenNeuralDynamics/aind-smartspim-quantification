@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 from typing import List
 
+import ants
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -67,7 +68,8 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
         )
 
         region = vedo.Mesh([vertices, faces])
-        count = len(region.inside_points(shared_coords).points())
+        locations = region.inside_points(shared_coords).points()
+        count = len(locations)
 
         # volume is in um**3 and density in cells/um**3
         region_vol = region.volume()
@@ -90,7 +92,10 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             count_density = (L_density + R_density) / 2
 
         else:
-            L_count, R_count, L_density, R_density = np.NaN, np.NaN, np.NaN, np.NaN
+            L_count = len(locations[np.where(locations[:, 0] < 5700)])
+            R_count = len(locations[np.where(locations[:, 0] >= 5700)])
+            L_density = L_count / (region_vol / 2)
+            R_density = R_count / (region_vol / 2)
 
         data_out = (
             struct_tup[0],
@@ -216,7 +221,7 @@ class CellCounts:
         if not micron_res:
             cell_list = []
             for cell in cells:
-                cell_list.append([int(cell["z"]), int(cell["y"]), int(cell["x"])])
+                cell_list.append([cell["x"], cell["y"], cell["z"]])
             cells = np.array(cell_list) * self.resolution
             cells = cells[:, [2, 1, 0]]
 
@@ -231,8 +236,8 @@ class CellCounts:
         cells_out = region_scaled.inside_points(cells).points()
 
         if not micron_res:
+            cells = cells[:, [2, 1, 0]]
             cells_out = np.array(cells_out) / self.resolution
-            cells_out = cells_out[:, [2, 1, 0]]
 
             new_cell_data = []
             for cell in cells_out:
@@ -245,7 +250,7 @@ class CellCounts:
                 )
 
             return new_cell_data
-        
+
         return cells_out
 
     def create_counts(self, cells, cropped=True):
@@ -264,6 +269,7 @@ class CellCounts:
 
         # convert cells to np.array() and convert to microns for counting
         cells = np.array(cells) * self.resolution
+        cells = cells[:, [2, 1, 0]]
 
         # remove cells that are outside the brain or on boarder (added 2023-04-14 NAL)
         if cropped:
@@ -327,6 +333,77 @@ def get_orientation(params: dict) -> str:
         orient[dim] = direction[0]
 
     return "".join(orient)
+
+
+def get_orientation_transform(orientation_in: str, orientation_out: str) -> tuple:
+    """
+    Takes orientation acronyms (i.e. spr) and creates a convertion matrix for
+    converting from one to another
+
+    Parameters
+    ----------
+    orientation_in : str
+        the current orientation of image or cells (i.e. spr)
+    orientation_out : str
+        the orientation that you want to convert the image or
+        cells to (i.e. ras)
+
+    Returns
+    -------
+    tuple
+        the location of the values in the identity matrix with values
+        (original, swapped)
+    """
+
+    reverse_dict = {"r": "l", "l": "r", "a": "p", "p": "a", "s": "i", "i": "s"}
+
+    input_dict = {dim.lower(): c for c, dim in enumerate(orientation_in)}
+    output_dict = {dim.lower(): c for c, dim in enumerate(orientation_out)}
+
+    transform_matrix = np.zeros((3, 3))
+    for k, v in input_dict.items():
+        if k in output_dict.keys():
+            transform_matrix[v, output_dict[k]] = 1
+        else:
+            k_reverse = reverse_dict[k]
+            transform_matrix[v, output_dict[k_reverse]] = -1
+
+    if orientation_in.lower() == "spl":
+        transform_matrix = abs(transform_matrix)
+
+    original, swapped = np.where(transform_matrix.T)
+
+    return original, swapped
+
+
+def get_template_info(file_path: PathLike) -> dict:
+    """
+
+
+    Parameters
+    ----------
+    file_path : PathLike
+        path to an nifti file that contains an ANTsImage template
+
+    Returns
+    -------
+    params: dict
+        information from file needed to convert cells into correct physical
+        space
+
+    """
+
+    ants_img = ants.image_read(file_path)
+
+    params = {
+        "orientation": ants_img.orientation(),
+        "dims": ants_img.dimension,
+        "scale": ants_img.spacing,
+        "origin": ants_img.origin,
+        "direction": ants_img.direction[np.where(ants_img.direction != 0)],
+    }
+
+    return params
 
 
 def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:

@@ -18,45 +18,16 @@ from pathlib import Path
 
 import ants
 import numpy as np
+import pandas as pd
 import pims
 from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
 from tqdm import tqdm
 
-from ._shared.types import PathLike
+from ._shared.types import A, PathLike
 from .utils import utils
 from .utils.generate_ccf_cell_count import generate_25_um_ccf_cells
-
-
-def read_transform(reg_path: PathLike) -> tuple:
-    """
-    Imports ants transformation from registration output
-
-    Parameters
-    -------------
-    seg_path: PathLike
-        Path to .gz file from registration
-
-    Returns
-    -------------
-    ants.transform
-        affine transform nonlinear warp field from ants.registration()
-    """
-    affine_file = os.path.abspath(os.path.join(reg_path, "affine_transforms.mat"))
-    affine = ants.read_transform(affine_file)
-    affinetx = affine.invert()
-
-    warp_file = os.path.abspath(os.path.join(reg_path, "ls_ccf_warp_transforms.nii.gz"))
-
-    # To make it compatible with the older CCF version
-    if not os.path.exists(warp_file):
-        warp_file = os.path.abspath(os.path.join(reg_path, "warp_transforms.nii.gz"))
-
-    warp = ants.image_read(warp_file)
-    warptx = ants.transform_from_displacement_field(warp)
-
-    return affinetx, warptx
 
 
 def read_xml(
@@ -70,7 +41,8 @@ def read_xml(
     seg_path: PathLike
         Path where the .xml file is located
     reg_dims: list
-        Resolution (pixels) of the image used for segmentation. Orientation [x (ML), z (DV), y (AP)]
+        Resolution (pixels) of the image used for segmentation. ordered
+        relative to zarr
     ds: int
         factor by which image for registration was downsampled from input_dims
     orient: str
@@ -81,7 +53,8 @@ def read_xml(
     Returns
     -------------
     list
-        List with cell locations as tuples (x (ML), y (AP), z (DV))
+        List with cell locations as tuples. orientation needs to be relative
+        to zarr for proper scaling
     """
 
     cell_file = glob(os.path.join(seg_path, "classified_*.xml"))[0]
@@ -91,25 +64,153 @@ def read_xml(
 
     for cell in file_cells:
         if orient == "spr":
-            cells.append((cell.x / ds, cell.z / ds, reg_dims[2] - (cell.y / ds)))
+            cells.append(
+                (
+                    cell.z / ds,
+                    reg_dims[1] - (cell.y / ds),
+                    reg_dims[2] - (cell.x / ds),
+                )
+            )
         elif orient == "spl" and institute == "AIBS":
             cells.append(
-                (reg_dims[0] - (cell.x / ds), cell.z / ds, reg_dims[2] - (cell.y / ds))
+                (
+                    cell.z / ds,
+                    reg_dims[1] - (cell.y / ds),
+                    cell.x / ds,
+                )
             )
         elif orient == "spl" and institute == "AIND":
-            cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
+            cells.append((cell.z / ds, cell.x / ds, cell.y / ds))
         elif orient == "sal":
-            cells.append((cell.x / ds, cell.z / ds, cell.y / ds))
+            cells.append((cell.z / ds, cell.x / ds, cell.y / ds))
         elif orient == "rpi":
             cells.append(
                 (
-                    reg_dims[1] - (cell.z / ds),
-                    reg_dims[0] - (cell.x / ds),
-                    reg_dims[2] - (cell.y / ds),
+                    reg_dims[0] - (cell.z / ds),
+                    reg_dims[1] - (cell.y / ds),
+                    reg_dims[2] - (cell.x / ds),
                 )
             )
 
     return cells
+
+
+def scale_cells(cells, scale):
+    """
+    Takes the downsampled cells, scales and orients them in smartspim template
+    space.
+
+    Parameters
+    ----------
+    cells : list
+        list of cell locations that has been downsampled
+
+    scale : list
+        the scaling metric between the raw image being downsampled to level 3
+        and the image after being placed into 25um state space for
+
+    Returns
+    -------
+    scaled_cells: np.ndarray
+        list of scaled cells that have been scaled
+
+    """
+
+    scaled_cells = []
+    for cell in cells:
+        scaled_cells.append(
+            (cell[0] * scale[0], cell[1] * scale[1], cell[2] * scale[2])
+        )
+
+    return np.array(scaled_cells)
+
+
+def convert_to_ants_space(template_parameters: dict, cells: np.ndarray):
+    """
+    Convert points from "index" space and places them into the physical space
+    required for applying ants transforms for a given ANTsImage
+
+    Parameters
+    ----------
+    template_parameters : dict
+        parameters of the ANTsImage physical space that you are converting
+        the points
+    cells : np.ndarray
+        the location of cells in index space that have been oriented to the
+        ANTs image that you are converting into
+
+    Returns
+    -------
+    ants_pts : np.ndarray
+        pts converted into ANTsPy physical space
+
+    """
+
+    ants_pts = cells.copy()
+
+    for dim in range(template_parameters["dims"]):
+        ants_pts[:, dim] *= template_parameters["scale"][dim]
+        ants_pts[:, dim] *= template_parameters["direction"][dim]
+        ants_pts[:, dim] += template_parameters["origin"][dim]
+
+    return ants_pts
+
+
+def convert_from_ants_space(template_parameters: dict, cells: np.ndarray):
+    """
+    Convert points from the physical space of an ANTsImage and places
+    them into the "index" space required for visualizing
+
+    Parameters
+    ----------
+    template_parameters : dict
+        parameters of the ANTsImage physical space from where you are
+        converting the points
+    cells : np.ndarray
+        the location of cells in physical space
+
+    Returns
+    -------
+    pts : np.ndarray
+        pts converted for ANTsPy physical space to "index" space
+
+    """
+
+    pts = cells.copy()
+
+    for dim in range(template_parameters["dims"]):
+        pts[:, dim] -= template_parameters["origin"][dim]
+        pts[:, dim] *= template_parameters["direction"][dim]
+        pts[:, dim] /= template_parameters["scale"][dim]
+
+    return pts
+
+
+def apply_transforms_to_points(ants_pts: np.ndarray, transforms: list) -> np.ndarray:
+    """
+    Takes the cell locations that have been converted into the correct
+    physical space needed for the provided transforms and registers the points
+
+    Parameters
+    ----------
+    ants_pts: np.ndarray
+        array with cell locations placed into ants physical space
+    transforms: list
+        list of the file locations for the transformations
+
+    Returns
+    -------
+    transformed_pts
+        list of point locations in CCF state space
+
+    """
+
+    df = pd.DataFrame(ants_pts, columns=["x", "y", "z"])
+    transformed_pts = ants.apply_transforms_to_points(
+        3, df, transforms, whichtoinvert=(False, True)
+    )
+
+    return np.array(transformed_pts)
 
 
 def create_visualization_folders(save_path: PathLike):
@@ -174,7 +275,7 @@ def write_transformed_cells(
     logger.info("Saving transformed cell locations to XML")
     for coord in tqdm(cell_transformed, total=len(cell_transformed)):
         coord = [dim if dim > 1 else 1.0 for dim in coord]
-        coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
+        coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
         cells.append(Cell(coord_dict, "cell"))
 
     transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")
@@ -283,6 +384,10 @@ def cell_quantification(
     reference_microns_ccf: int,
     institute_abbreviation: str,
     orientation: list,
+    scaling: list,
+    template_transforms: list,
+    ccf_transforms: list,
+    image_files: dict,
     logger: logging.Logger,
 ):
     """
@@ -320,6 +425,20 @@ def cell_quantification(
         Info on the orientation that the brain was
         aquired during imaging
 
+    scaling: list
+        The scaling between resolution of the image and that of
+        the 25um templates
+
+    template_transforms: list
+        Pathways to the registration transforms from the registration
+        capsule ordered [InverseWarp, Affine]
+
+    ccf_transforms: list
+        Pathways to ccf transforms data asset ordered [InverseWarp, Affine]
+
+    image_files: dict
+        Pathways to the nifti files for the smartspim template and ccf
+
     logger: logging.Logger
         logging object
 
@@ -344,35 +463,34 @@ def cell_quantification(
     raw_cells = read_xml(
         detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
     )
-    affinetx, warptx = read_transform(ccf_transforms_path)
 
-    # Getting transformed res which is the original image in the 3rd multiscale
-    # rescaled to the 25 um resolution equal to the Allen CCF Atlas
-    transformed_res_path = f"{ccf_transforms_path}/metadata/downsampled_16.tiff"
-    transform_res = None
+    scaled_cells = scale_cells(raw_cells, scaling)
+    template_params = utils.get_template_info(image_files["smartspim_template"])
 
-    if orient == "rpi":
-        reg_dims[0], reg_dims[1] = reg_dims[1], reg_dims[0]
+    logger.info(
+        f"Reorient cells from {orient} to template {template_params['orientation']} "
+    )
+    _, swapped = utils.get_orientation_transform(orient, template_params["orientation"])
+    orient_cells = scaled_cells[:, swapped]
 
-    with pims.open(transformed_res_path) as imgs:
-        transform_res = [
-            imgs.frame_shape[-1],
-            imgs.frame_shape[-2],
-            len(imgs),
-        ]  # output is in [ML, DV, AP] which is the same as the input array
+    logger.info("Converting oriented cells into ANTs physical space")
+    template_params = utils.get_template_info(image_files["smartspim_template"])
+    ants_cells = convert_to_ants_space(template_params, orient_cells)
 
-    logger.info(f"Image shape of transformed image: {transform_res}")
-    scale = [raw / trans for raw, trans in zip(transform_res, reg_dims)]
-    logger.info(f"Scale: {scale}")
+    logger.info("Registering Cells to SmartSPIM template")
+    template_cells = apply_transforms_to_points(ants_cells, template_transforms)
 
-    logger.info("Processing cell location using registration transform")
-    cells_transformed = []
+    logger.info("Convert template cells into CCF space and orientation")
+    ccf_pts = apply_transforms_to_points(template_cells, ccf_transforms)
 
-    for cell in tqdm(raw_cells, total=len(raw_cells)):
-        scaled_cell = [dim * scale for dim, scale in zip(cell, scale)]
-        affine_pt = affinetx.apply_to_point(scaled_cell)
-        warp_pt = warptx.apply_to_point(affine_pt)
-        cells_transformed.append(warp_pt)
+    logger.info("Conver cells back into index space")
+    ccf_params = utils.get_template_info(image_files["ccf_template"])
+    ccf_cells = convert_from_ants_space(ccf_params, ccf_pts)
+
+    _, swapped = utils.get_orientation_transform(
+        template_params["orientation"], ccf_params["orientation"]
+    )
+    cells_transformed = ccf_cells[:, swapped]
 
     # Getting annotation map and meshes path
     ccf_dir = os.path.dirname(os.path.realpath(__file__))
@@ -439,9 +557,9 @@ def main(
     # input res is returned in order tczyx, here we use xzy
     # where z is the imaging axis
     smartspim_config["input_params"]["input_res"] = [
-        input_res[-1],
         input_res[-3],
         input_res[-2],
+        input_res[-1],
     ]
 
     metadata_folder = Path(smartspim_config["save_path"]).joinpath("metadata")
