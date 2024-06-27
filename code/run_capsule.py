@@ -186,20 +186,20 @@ def run():
     # add paths to template_to_ccf transforms
     default_config["input_params"]["ccf_transforms"] = [
         os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1InverseWarp.nii.gz"
+            f"{data_folder}/syn_1InverseWarp.nii.gz"
         ),
         os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+            f"{data_folder}/syn_0GenericAffine.mat"
         ),
     ]
 
     # add paths to the nifti files of the template and ccf
     default_config["input_params"]["image_files"] = {
         "ccf_template": os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/ccf_average_template_25.nii.gz"
+            f"{data_folder}/ccf_average_template_25.nii.gz"
         ),
         "smartspim_template": os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/smartspim_lca_template_25.nii.gz"
+            f"{data_folder}/smartspim_lca_template_25.nii.gz"
         ),
     }
 
