@@ -92,10 +92,14 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             count_density = (L_density + R_density) / 2
 
         else:
-            L_count = len(locations[np.where(locations[:, 0] < 5700)])
-            R_count = len(locations[np.where(locations[:, 0] >= 5700)])
-            L_density = L_count / (region_vol / 2)
-            R_density = R_count / (region_vol / 2)
+
+            if count > 0:
+                L_count = len(locations[np.where(locations[:, 0] < 5700)])
+                R_count = len(locations[np.where(locations[:, 0] >= 5700)])
+                L_density = L_count / (region_vol / 2)
+                R_density = R_count / (region_vol / 2)
+            else:
+                L_count, R_count, L_density, R_density = 0, 0, 0, 0
 
         data_out = (
             struct_tup[0],
