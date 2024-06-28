@@ -100,9 +100,9 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     default_config["input_params"][
         "detected_cells_xml_path"
     ] = f"{default_config['cell_segmentation_folder']}/"
-    default_config["input_params"][
-        "ccf_transforms_path"
-    ] = f"{default_config['ccf_registration_folder']}/"
+    #default_config["input_params"][
+    #    "ccf_transforms_path"
+    #] = f"{default_config['ccf_registration_folder']}/"
 
     return default_config
 

@@ -355,7 +355,7 @@ def generate_neuroglancer_link(
     # Updating S3 registered brain to future S3 path
     # Getting registration channel name
     ccf_reg_channel_name = re.search(
-        "(Ex_[0-9]*_Em_[0-9]*)", smartspim_config["input_params"]["ccf_transforms_path"]
+        "(Ex_[0-9]*_Em_[0-9]*)", smartspim_config["input_params"]["channel"]
     ).group()
 
     ccf_registered_s3_path = f"zarr://{dataset_path}/image_atlas_alignment/{ccf_reg_channel_name}/OMEZarr/image.zarr"
