@@ -414,7 +414,7 @@ def cell_quantification(
         Integer that indicates the downsample resolution
         that was used in the CCF alignment. Default 3
 
-    reference_microns_ccf_int: int
+    reference_microns_ccf: int
         Integer that indicates to which um space the
         downsample image was taken to. Default 25 um.
 

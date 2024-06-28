@@ -100,9 +100,9 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     default_config["input_params"][
         "detected_cells_xml_path"
     ] = f"{default_config['cell_segmentation_folder']}/"
-    #default_config["input_params"][
-    #    "ccf_transforms_path"
-    #] = f"{default_config['ccf_registration_folder']}/"
+    default_config["input_params"][
+        "ccf_transforms_path"
+    ] = f"{default_config['ccf_registration_folder']}/"
 
     return default_config
 
@@ -170,6 +170,17 @@ def run():
         )
     )
 
+    ccf_folder = glob(f"{data_folder}/ccf_*")
+
+    if len(ccf_folder):
+        ccf_folder = ccf_folder[0]
+
+    # add paths to default_config
+    default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
+    default_config["cell_segmentation_folder"] = os.path.abspath(
+        f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
+    )
+
     # add paths to ls_to_template transforms
     default_config["input_params"]["template_transforms"] = [
         os.path.abspath(
@@ -202,10 +213,6 @@ def run():
 
     print("Pipeline config: ", pipeline_config)
     print("Data folder contents: ", os.listdir(data_folder))
-
-    default_config["cell_segmentation_folder"] = os.path.abspath(
-        f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
-    )
 
     # add orientation information to default_config
     acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
