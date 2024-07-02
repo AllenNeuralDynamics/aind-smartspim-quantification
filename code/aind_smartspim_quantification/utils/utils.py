@@ -400,7 +400,7 @@ def get_template_info(file_path: PathLike) -> dict:
     ants_img = ants.image_read(file_path)
 
     params = {
-        "orientation": ants_img.orientation(),
+        "orientation": ants_img.orientation,
         "dims": ants_img.dimension,
         "scale": ants_img.spacing,
         "origin": ants_img.origin,
