@@ -194,10 +194,10 @@ def run():
     # add paths to template_to_ccf transforms
     default_config["input_params"]["ccf_transforms"] = [
         os.path.abspath(
-            f"{data_folder}/spim_template_to_ccf/syn_1InverseWarp.nii.gz"
+            f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
         ),
         os.path.abspath(
-            f"{data_folder}/spim_template_to_ccf/syn_0GenericAffine.mat"
+            f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
         ),
     ]
 
