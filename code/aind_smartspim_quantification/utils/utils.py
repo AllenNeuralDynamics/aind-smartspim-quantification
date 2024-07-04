@@ -225,7 +225,7 @@ class CellCounts:
         if not micron_res:
             cell_list = []
             for cell in cells:
-                cell_list.append([cell["x"], cell["y"], cell["z"]])
+                cell_list.append(int([cell["x"]), int(cell["y"]), int(cell["z"])])
             cells = np.array(cell_list) * self.resolution
             cells = cells[:, [2, 1, 0]]
 
