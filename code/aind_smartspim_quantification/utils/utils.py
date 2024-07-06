@@ -274,11 +274,11 @@ class CellCounts:
 
         # convert cells to np.array() and convert to microns for counting
         cells = np.array(cells) * self.resolution
-        cells = cells[:, [2, 1, 0]]
-
-        # remove cells that are outside the brain or on boarder (added 2023-04-14 NAL)
+        
         if cropped:
-            self.crop_cells(cells)
+            cells = self.crop_cells(cells)
+        else:
+            cells = cells[:, [2, 1, 0]]
 
         # get list of all regions and region IDs from .json file
         self.get_region_lists()
