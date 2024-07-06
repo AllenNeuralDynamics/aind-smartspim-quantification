@@ -229,6 +229,7 @@ class CellCounts:
             cells = np.array(cell_list) * self.resolution
             #cells = cells[:, [2, 1, 0]]
 
+        cells = cells[:, [2, 1, 0]]
         verts, faces = self.get_CCF_mesh_points("997")
 
         region = vedo.Mesh([verts, faces])
@@ -240,7 +241,7 @@ class CellCounts:
         cells_out = region_scaled.inside_points(cells).points()
 
         if not micron_res:
-            #cells = cells[:, [2, 1, 0]]
+            cells = cells[:, [2, 1, 0]]
             cells_out = np.array(cells_out) / self.resolution
 
             new_cell_data = []
