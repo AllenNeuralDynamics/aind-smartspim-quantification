@@ -227,7 +227,7 @@ class CellCounts:
             for cell in cells:
                 cell_list.append([int(cell["x"]), int(cell["y"]), int(cell["z"])])
             cells = np.array(cell_list) * self.resolution
-            cells = cells[:, [2, 1, 0]]
+            #cells = cells[:, [2, 1, 0]]
 
         verts, faces = self.get_CCF_mesh_points("997")
 
@@ -240,7 +240,7 @@ class CellCounts:
         cells_out = region_scaled.inside_points(cells).points()
 
         if not micron_res:
-            cells = cells[:, [2, 1, 0]]
+            #cells = cells[:, [2, 1, 0]]
             cells_out = np.array(cells_out) / self.resolution
 
             new_cell_data = []
