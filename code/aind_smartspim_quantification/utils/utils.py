@@ -202,6 +202,30 @@ class CellCounts:
 
         self.structs = hemi_labeled + mid_labeled
 
+    def get_metric_region_info(self, regions):
+        """
+        Get subest of CCF regions that are used for quantification
+
+        Parameters
+        ----------
+        regions : list
+            region IDs 
+
+        Returns
+        -------
+        info: dict
+            pairing of region ID with info
+
+        """
+        
+        info = {}
+        for struct_id, location in self.structs:
+            if struct_id in regions:
+                acronym = self.annot_map[struct_id]
+                info[struct_id] = [acronym, location]
+                
+        return info
+
     def crop_cells(self, cells, micron_res=True, factor=0.99):
         """
         Removes cells outside and on the boundary of the CCF
@@ -359,7 +383,7 @@ def get_orientation_transform(orientation_in: str, orientation_out: str) -> tupl
 
 def get_template_info(file_path: PathLike) -> dict:
     """
-
+    Collect relevent information from AntsImage for transforming points
 
     Parameters
     ----------
@@ -386,7 +410,144 @@ def get_template_info(file_path: PathLike) -> dict:
 
     return params
 
+def get_volume(vertices, faces, split):
+    
+    if split == 'hemi':
+        break_pt = len(vertices) // 2
+        vert_L, vert_R = vertices[:break_pt], vertices[break_pt:]
+        
+        region_L = vedo.Mesh([vert_L, faces])
+        region_R = vedo.Mesh([vert_R, faces])
+        
+        volume = region_L.volume() + region_R.volume()
+    else:
+        region = vedo.Mesh([vertices, faces])
+        volume = region.volume()
+        
+    return volume
 
+def get_mesh_interrior_points(mesh) -> tuple:
+    """
+    Collects all points that within a given vedo.Mesh
+
+    Parameters:
+    -----------
+    mesh: vedo.mesh
+        Mesh object of a given CCF region
+
+    Returns:
+    --------
+    tuple
+        The x, y and z coordinates of the points that fall within The
+        mesh
+
+    """
+
+    bounds = mesh.bounds()
+    region_array = mesh.binarize(spacing = (1,1,1)).tonumpy()
+    
+    indecies = np.where(region_array == 255)
+    xs = indecies[0] + int(bounds[0])
+    ys = indecies[1] + int(bounds[2])
+    zs = indecies[2] + int(bounds[4])
+    
+    return (xs, ys, zs)
+
+def get_intensity_mask(vertices, faces, mask, split) -> np.array:
+    """
+    Create binary mask of a given CCF region using the verticies and 
+    faces from JSON file 
+
+    Parameters:
+    -----------
+    vertices: list
+        the location of nodes for a given mesh
+    faces: list
+        the conncetivity of the mesh nodes
+    split: str
+        indicates if the mesh is for a region that crosses the midline
+        or is localized to a hemisphere. Options: ['mid', 'hemi']
+
+    Returns:
+    --------
+    mask: np.array
+        a 3D array in CCF space that masks the region being processed
+    """
+    if split == 'hemi':
+        break_pt = len(vertices) // 2
+        vert_L, vert_R = vertices[:break_pt], vertices[break_pt:]
+        
+        region_L = vedo.Mesh([vert_L, faces])
+        indicies = get_mesh_interrior_points(region_L)
+        mask[indicies]  = 255
+        
+        region_R = vedo.Mesh([vert_R, faces])
+        indicies = get_mesh_interrior_points(region_R)
+        mask[indicies]  = 255
+        
+    else:
+        region = vedo.Mesh([vertices, faces])
+        indicies = get_mesh_interrior_points(region)
+        mask[indicies]  = 255
+        
+    return mask
+
+def normalized_mutual_information(
+    ccf_img: np.array, img: np.array, mask: np.array
+) -> float:
+    """
+    Method to compute the mutual information error metric using numpy.
+    Note: Check the used dtype to reach a higher precision in the metric
+
+    See: Normalised Mutual Information of: A normalized entropy
+    measure of 3-D medical image alignment,
+    Studholme,  jhill & jhawkes (1998).
+
+    Parameters
+    ------------------------
+    ccf_img: np.array
+        2D/3D patch of extracted from the image 1
+        and based on a windowed point.
+
+    img: np.array
+        2D/3D patch of extracted from the image 2
+        and based on a windowed point.
+        
+    mask: np.array
+        2D/
+
+    Returns
+    ------------------------
+    float
+        Float with the value of the mutual information error.
+    """
+    
+    ccf_img = ccf_img.astype(int)
+    
+    # mutual information is invariant to scaling so this should not matter
+    if img.dtype == float:
+        img = int((img - img.min()) - (img.max() - img.min()) * ccf_img.max())
+    
+    patch_1 = np.where(mask > 0, ccf_img, 0)
+    patch_2 = np.where(mask > 0, img, 0)
+    
+    # flatten arrays
+    patch_1 = patch_1.flatten()
+    patch_2 = patch_2.flatten()
+
+    # Compute the Normalized Mutual Information between the pixel distributions
+    nmi = normalized_mutual_info_score(
+        patch_1,
+        patch_2,
+        average_method='geometric'
+    )
+    
+    return nmi
+ 
+def get_region_intensity(img, mask):  
+    masked_img = np.where(mask > 0, img, 0)
+    return masked_img
+    
 def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
     """
     Saves a text in a file in the given mode.

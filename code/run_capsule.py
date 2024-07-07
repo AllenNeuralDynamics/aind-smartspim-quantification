@@ -201,6 +201,26 @@ def run():
         ),
     ]
 
+    # add paths for reverse transforms for calculating metrics
+    default_config["reverse_transforms"] = {
+        "template_transforms": [
+            os.path.abspath(
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
+            ),
+            os.path.abspath(
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+            ),
+        ],
+        "ccf_transforms": [
+            os.path.abspath(
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp.nii.gz"
+            ),
+            os.path.abspath(
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+            ),
+        ]
+    }
+
     # add paths to the nifti files of the template and ccf
     default_config["input_params"]["image_files"] = {
         "ccf_template": os.path.abspath(
@@ -221,6 +241,7 @@ def run():
 
     # TODO dont hard code this
     default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
+    default_config["reverse_scaling"] = [25/16, 25/14.4, 25/14.4]
 
     # combine configs
     smartspim_config = set_up_pipeline_parameters(
