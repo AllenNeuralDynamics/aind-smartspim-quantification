@@ -222,7 +222,6 @@ class CellCounts:
             list of cells that are within the scaled CCF
         """
 
-
         cells = cells[:, [2, 1, 0]]
 
         verts, faces = self.get_CCF_mesh_points("997")
@@ -235,9 +234,9 @@ class CellCounts:
 
         cells_out = region_scaled.inside_points(cells).points()
 
-        return cells_out[:, [2, 1, 0]]
+        return cells_out
 
-    def create_counts(self, cells, cropped=True):
+    def create_counts(self, cells, cropped=False):
         """
         Import list of acronyms of brain regions
 
@@ -256,8 +255,6 @@ class CellCounts:
         
         if cropped:
             cells = self.crop_cells(cells)
-        else:
-            cells = cells[:, [2, 1, 0]]
 
         # get list of all regions and region IDs from .json file
         self.get_region_lists()
