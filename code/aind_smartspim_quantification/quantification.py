@@ -281,7 +281,7 @@ def write_transformed_cells(
     logger.info("Saving transformed cell locations to XML")
     for coord in tqdm(cell_transformed, total=len(cell_transformed)):
         coord = [dim if dim > 1 else 1.0 for dim in coord]
-        coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
+        coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
         cells.append(Cell(coord_dict, "cell"))
 
     transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")

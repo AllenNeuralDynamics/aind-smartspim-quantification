@@ -222,14 +222,8 @@ class CellCounts:
             list of cells that are within the scaled CCF
         """
 
-        if not micron_res:
-            cell_list = []
-            for cell in cells:
-                cell_list.append([int(cell["x"]), int(cell["y"]), int(cell["z"])])
-            cells = np.array(cell_list) * self.resolution
-            #cells = cells[:, [2, 1, 0]]
-        else:
-            cells = cells[:, [2, 1, 0]]
+
+        cells = cells[:, [2, 1, 0]]
 
         verts, faces = self.get_CCF_mesh_points("997")
 
@@ -241,23 +235,7 @@ class CellCounts:
 
         cells_out = region_scaled.inside_points(cells).points()
 
-        if not micron_res:
-            #cells = cells[:, [2, 1, 0]]
-            cells_out = np.array(cells_out) / self.resolution
-
-            new_cell_data = []
-            for cell in cells_out:
-                new_cell_data.append(
-                    {
-                        "x": cell[0],
-                        "y": cell[1],
-                        "z": cell[2],
-                    }
-                )
-
-            return new_cell_data
-
-        return cells_out
+        return cells_out[:, [2, 1, 0]]
 
     def create_counts(self, cells, cropped=True):
         """

@@ -132,14 +132,9 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
 
     # Get cells from XML
     cells = get_points_from_xml(params["cells_precomputed"]["xml_path"])
-    ccf_dir = Path(os.path.dirname(os.path.realpath(__file__))).parent
-
-    # Only keep cells within the atlas (added 2023-04-14 NAL)
-    #count = CellCounts(ccf_dir, micron_res)
-    #cells = count.crop_cells(cells, micron_res=False)
     cells = list(cells)
 
-    # cells = random.shuffle(cells)
+    ccf_dir = Path(os.path.dirname(os.path.realpath(__file__))).parent
 
     generate_cff_cell_counting(
         params["ccf_cells_precomputed"]["input_path"],
