@@ -135,8 +135,8 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
     ccf_dir = Path(os.path.dirname(os.path.realpath(__file__))).parent
 
     # Only keep cells within the atlas (added 2023-04-14 NAL)
-    count = CellCounts(ccf_dir, micron_res)
-    cells = count.crop_cells(cells, micron_res=False)
+    #count = CellCounts(ccf_dir, micron_res)
+    #cells = count.crop_cells(cells, micron_res=False)
     cells = list(cells)
 
     # cells = random.shuffle(cells)
@@ -175,7 +175,14 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
                 "type": "segmentation",
                 "source": {
                     "url": f"precomputed://{params['ccf_cells_precomputed']['output_path']}",
-                    "transform": {"matrix": [[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]]},
+                    "transform": {
+                        "matrix": [[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]],
+                        "outputDimensions": {
+                            "x": {"voxel_size": micron_res, "unit": "microns"},
+                            "y": {"voxel_size": micron_res, "unit": "microns"},
+                            "z": {"voxel_size": micron_res, "unit": "microns"}
+                        }
+                    }
                 },
                 "tab": "source",
                 "name": "cell_counting_in_CCF",

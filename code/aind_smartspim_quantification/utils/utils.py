@@ -202,7 +202,7 @@ class CellCounts:
 
         self.structs = hemi_labeled + mid_labeled
 
-    def crop_cells(self, cells, micron_res=True, factor=0.98):
+    def crop_cells(self, cells, micron_res=True, factor=0.99):
         """
         Removes cells outside and on the boundary of the CCF
 
@@ -228,8 +228,9 @@ class CellCounts:
                 cell_list.append([int(cell["x"]), int(cell["y"]), int(cell["z"])])
             cells = np.array(cell_list) * self.resolution
             #cells = cells[:, [2, 1, 0]]
+        else:
+            cells = cells[:, [2, 1, 0]]
 
-        cells = cells[:, [2, 1, 0]]
         verts, faces = self.get_CCF_mesh_points("997")
 
         region = vedo.Mesh([verts, faces])
@@ -241,7 +242,7 @@ class CellCounts:
         cells_out = region_scaled.inside_points(cells).points()
 
         if not micron_res:
-            cells = cells[:, [2, 1, 0]]
+            #cells = cells[:, [2, 1, 0]]
             cells_out = np.array(cells_out) / self.resolution
 
             new_cell_data = []
