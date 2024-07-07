@@ -82,7 +82,13 @@ def read_xml(
         elif orient == "spl" and institute == "AIND":
             cells.append((cell.z / ds, cell.y / ds, cell.x / ds))
         elif orient == "sal":
-            cells.append((cell.z / ds, cell.y / ds, cell.x / ds))
+            cells.append(
+                (
+                    cell.z / ds,
+                    cell.y / ds, 
+                    reg_dims[2] - (cell.x / ds)
+                )
+            )
         elif orient == "rpi":
             cells.append(
                 (
