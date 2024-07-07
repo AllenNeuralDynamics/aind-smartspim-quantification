@@ -90,6 +90,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
         f"{pipeline_config['quantification']['fused_folder']}"
     )
     default_config["stitched_s3_path"] = pipeline_config["stitching"]["s3_path"]
+    default_config['registration_channel'] = pipeline_config['stitching']['channel']
     default_config["channel_name"] = pipeline_config["quantification"]["channel"]
     default_config["save_path"] = os.path.abspath(
         f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}"
