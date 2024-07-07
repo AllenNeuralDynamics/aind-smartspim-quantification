@@ -544,10 +544,32 @@ def normalized_mutual_information(
     
     return nmi
  
-def get_region_intensity(img, mask):  
+def get_region_intensity(img, mask) -> np.array:
+    """
+    
+    """
     masked_img = np.where(mask > 0, img, 0)
     return masked_img
-    
+
+def __read_zarr_image(image_path: PathLike):
+    """
+    Reads a zarr image
+
+    Parameters
+    -------------
+    image_path: PathLike
+        Path where the zarr image is located
+
+    Returns
+    -------------
+    da.core.Array
+        Dask array with the zarr image
+    """
+
+    image_path = str(image_path)
+    signal_array = da.from_zarr(image_path)
+
+    return signal_array
 def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
     """
     Saves a text in a file in the given mode.
