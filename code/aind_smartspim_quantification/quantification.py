@@ -762,7 +762,7 @@ def main(
     
     metric_params = {
         'region_list': smartspim_config['region_list'],
-        'creference_microns_ccf': smartspim_config['input_params']['reference_microns_ccf'],
+        'reference_microns_ccf': smartspim_config['input_params']['reference_microns_ccf'],
         'reverse_transforms': smartspim_config['reverse_transforms'],
         'image_files': smartspim_config["input_params"]['image_files'],
         'orientation': smartspim_config['input_params']['orientation'],
