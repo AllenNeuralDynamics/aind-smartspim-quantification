@@ -223,9 +223,9 @@ class CellCounts:
         
         info = {}
         for struct_id, location in self.structs:
-            if struct_id in regions:
-                acronym = self.annot_map[struct_id]
-                info[struct_id] = [acronym, location]
+            if str(struct_id) in regions:
+                acronym = self.annot_map[str(struct_id)]
+                info[str(struct_id)] = [acronym, location]
                 
         return info
 
