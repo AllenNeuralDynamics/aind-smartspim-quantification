@@ -7,6 +7,7 @@ Created on Fri Jan 20 15:55:37 2023
 @modified by: camilo.laiton
 """
 
+import copy
 import json
 import logging
 import multiprocessing
@@ -80,9 +81,15 @@ def read_xml(
                 )
             )
         elif orient == "spl" and institute == "AIND":
-            cells.append((cell.z / ds, cell.x / ds, cell.y / ds))
+            cells.append((cell.z / ds, cell.y / ds, cell.x / ds))
         elif orient == "sal":
-            cells.append((cell.z / ds, cell.x / ds, cell.y / ds))
+            cells.append(
+                (
+                    cell.z / ds,
+                    cell.y / ds, 
+                    reg_dims[2] - (cell.x / ds)
+                )
+            )
         elif orient == "rpi":
             cells.append(
                 (
@@ -275,7 +282,7 @@ def write_transformed_cells(
     logger.info("Saving transformed cell locations to XML")
     for coord in tqdm(cell_transformed, total=len(cell_transformed)):
         coord = [dim if dim > 1 else 1.0 for dim in coord]
-        coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
+        coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
         cells.append(Cell(coord_dict, "cell"))
 
     transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")
@@ -355,7 +362,7 @@ def generate_neuroglancer_link(
     # Updating S3 registered brain to future S3 path
     # Getting registration channel name
     ccf_reg_channel_name = re.search(
-        "(Ex_[0-9]*_Em_[0-9]*)", smartspim_config["input_params"]["channel"]
+        "(Ex_[0-9]*_Em_[0-9]*)", smartspim_config["input_params"]["ccf_transforms_path"]
     ).group()
 
     ccf_registered_s3_path = f"zarr://{dataset_path}/image_atlas_alignment/{ccf_reg_channel_name}/OMEZarr/image.zarr"
@@ -520,6 +527,154 @@ def cell_quantification(
 
     return csv_path, transformed_cells_path
 
+def quantification_metrics(
+        region_list: list,
+        reference_microns_ccf: int,
+        reverse_transforms: list,
+        image_files: dict,
+        orientation: list,
+        reverse_scaling: list,
+        image_path: PathLike,
+        registered_path: PathLike
+) -> pd.DataFrame:
+    """
+    Reverse transform ccf regions and get volume and intensity metrics 
+    
+
+    Parameters
+    ----------
+    region_list : list
+        list of ccf ids for regions that you want to get quantification
+        metrics
+        
+    reference_microns_ccf: int
+        Integer that indicates to which um space the
+        downsample image was taken to. Default 25 um.
+        
+    reverse_transforms: dict
+        Pathways for reverse transfrom data assets for ccf_to_template and
+        template_to_ls ordered [Warp, Affine]
+        
+    image_files: dict
+        Pathways to the nifti files for the smartspim template and ccf
+    
+    reverse_scaling: list
+        List of scaling from 25um to downsampled 3
+    
+    orientation: list
+        Info on the orientation that the brain was
+        aquired during imaging
+    
+    image_path: str
+        The location of the stitched zarr
+        
+    registered_path: str
+        Location to the registered zarr
+
+    Returns
+    -------
+    metric_df: pd.dataframe
+        metrics for regions reverse transforms and nmi
+
+    """
+    ccf_dir = os.path.dirname(os.path.realpath(__file__))
+    count = utils.CellCounts(ccf_dir, reference_microns_ccf)
+    region_info = count.get_metric_region_info(region_list)
+    
+    img = utils.__read_zarr_image(image_path)
+    img = np.array(img).squeeze()
+    
+    registered_img = utils.__read_zarr_image(registered_path)
+    registered_img = np.array(registered_img).squeeze()
+    
+    ccf_img = ants.image_read(image_files["ccf_template"]).numpy()
+    
+    metrics = []
+    for region in region_list:
+        verts, faces = count.get_CCF_mesh_points(region)
+        
+        if region_info[region][1] == 'hemi':
+            vertices_right = copy.copy(verts)
+            vertices_right[:, 0] = (
+                vertices_right[:, 0] + (5700 - vertices_right[:, 0]) * 2
+            )
+        
+            verts = np.vstack((verts, vertices_right))
+    
+        #Get the mesh oriented in the same direction as the ccf
+        scaled_verts = verts / reference_microns_ccf
+        oriented_verts = scaled_verts[:, [2, 1, 0]]
+        
+        mask = np.zeros(shape = ccf_img.shape, dtype = np.int8)
+        mask = utils.get_intensity_mask(
+            oriented_verts,
+            faces,
+            mask, 
+            split = region_info[region][1]
+        )
+        
+        norm_mutual_info = utils.mutual_information(
+            ccf_img, 
+            registered_img,
+            mask
+        )
+        
+        #Transform to template
+        ccf_params = utils.get_template_info(image_files["ccf_template"])
+        ants_verts = convert_to_ants_space(ccf_params, oriented_verts)
+        template_verts = apply_transforms_to_points(
+            ants_verts,
+            reverse_transforms['ccf_transforms'],
+            invert = (False, False)
+        )
+        
+        #Transform to lightsheet
+        template_params = utils.get_template_info(image_files["smartspim_template"])
+        ls_verts = apply_transforms_to_points(
+            template_verts,
+            reverse_transforms['template_transforms'],
+            invert = (False, False)
+        )
+        converted_verts = convert_from_ants_space(template_params, ls_verts)
+        
+        # convert to orientation of the zarr image
+        orient = utils.get_orientation(orientation)
+        _, swapped = utils.get_orientation_transform(template_params['orientation'], orient)
+        converted_verts  = converted_verts [:, swapped]
+        out_verts = scale_cells(converted_verts , reverse_scaling)
+        
+        # get metrics
+        volume = utils.get_volume(
+            out_verts,
+            faces, 
+            region_info[region][1]
+        )
+        
+        mask = np.zeros(shape = img.shape, dtype = np.int8)
+        mask = utils.get_intensity_mask(out_verts, faces, mask, region_info[region][1])
+        intensity = utils.get_region_intensity(img, mask)
+
+        metrics.append(
+            [
+                region_info[region][0],
+                region,
+                volume,
+                np.sum(intensity),
+                norm_mutual_info
+            ]
+        )
+    
+    cols = [
+        'Acronym',
+        'Region_ID',
+        'Volume',
+        'Total_Intensity',
+        "Normalized_Mutual_Info"
+    ]
+    
+    metric_df = pd.DataFrame(metrics, columns=cols)
+    
+    return metric_df
 
 def main(
     data_folder: PathLike,
@@ -597,6 +752,33 @@ def main(
         institute_abbreviation=smartspim_config["institute_abbreviation"],
         **smartspim_config["input_params"],
     )
+
+    image_path = os.path.abspath(
+        f"{smartspim_config['fused_folder']}/{smartspim_config['registration_channel']}.zarr/3/"
+    )
+    
+    registered_zarr = os.path.abspath(
+        f'{smartspim_config["input_params"]["ccf_transforms_path"]}/OMEZarr/image.zarr/0/'   
+    )
+    
+    metric_params = {
+        'region_list': smartspim_config['region_list'],
+        'reference_microns_ccf': smartspim_config['input_params']['reference_microns_ccf'],
+        'reverse_transforms': smartspim_config['reverse_transforms'],
+        'image_files': smartspim_config["input_params"]['image_files'],
+        'orientation': smartspim_config['input_params']['orientation'],
+        'reverse_scaling': smartspim_config['reverse_scaling'],
+        'image_path': image_path,
+        'registered_path': registered_zarr
+    }
+    
+    #metrics = quantification_metrics(**metric_params)
+    
+    #metric_path = os.path.abspath(
+    #    f'{smartspim_config["save_path"]}/region_metrics.csv'
+    #)
+    
+    #metrics.to_csv(metric_path)
 
     # Create visualization folders
     ccf_cells_precomputed, cells_precomputed = create_visualization_folders(

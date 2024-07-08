@@ -90,6 +90,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
         f"{pipeline_config['quantification']['fused_folder']}"
     )
     default_config["stitched_s3_path"] = pipeline_config["stitching"]["s3_path"]
+    default_config['registration_channel'] = pipeline_config['stitching']['channel']
     default_config["channel_name"] = pipeline_config["quantification"]["channel"]
     default_config["save_path"] = os.path.abspath(
         f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}"
@@ -201,6 +202,26 @@ def run():
         ),
     ]
 
+    # add paths for reverse transforms for calculating metrics
+    default_config["reverse_transforms"] = {
+        "template_transforms": [
+            os.path.abspath(
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
+            ),
+            os.path.abspath(
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+            ),
+        ],
+        "ccf_transforms": [
+            os.path.abspath(
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp.nii.gz"
+            ),
+            os.path.abspath(
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+            ),
+        ]
+    }
+
     # add paths to the nifti files of the template and ccf
     default_config["input_params"]["image_files"] = {
         "ccf_template": os.path.abspath(
@@ -221,6 +242,7 @@ def run():
 
     # TODO dont hard code this
     default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
+    default_config["reverse_scaling"] = [25/16, 25/14.4, 25/14.4]
 
     # combine configs
     smartspim_config = set_up_pipeline_parameters(

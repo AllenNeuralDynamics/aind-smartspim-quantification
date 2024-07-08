@@ -2,3 +2,12 @@
 bucket_path: "aind-open-data"
 input_params:
     reference_microns_ccf: 25
+region_list:
+    - "1080"
+    - "262"
+    - "64"
+    - "214"
+    - "35"
+    - "1047"
+    - "672"
+    - "795"
