@@ -613,7 +613,7 @@ def quantification_metrics(
             split = region_info[region][1]
         )
         
-        norm_mutual_info = utils.mutual_information(
+        norm_mutual_info = utils.normalized_mutual_information(
             ccf_img, 
             registered_img,
             mask
