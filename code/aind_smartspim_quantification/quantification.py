@@ -7,6 +7,7 @@ Created on Fri Jan 20 15:55:37 2023
 @modified by: camilo.laiton
 """
 
+import copy
 import json
 import logging
 import multiprocessing
