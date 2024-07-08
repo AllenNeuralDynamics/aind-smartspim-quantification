@@ -217,6 +217,7 @@ class CellCounts:
             pairing of region ID with info
 
         """
+        self.get_region_lists()
         
         info = {}
         for struct_id, location in self.structs:
