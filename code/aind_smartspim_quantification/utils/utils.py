@@ -229,7 +229,7 @@ class CellCounts:
                 
         return info
 
-    def crop_cells(self, cells, micron_res=True, factor=0.99):
+    def crop_cells(self, cells, factor=0.99):
         """
         Removes cells outside and on the boundary of the CCF
 
@@ -237,8 +237,6 @@ class CellCounts:
         ------------------------
         cells: list
             list of cell locations after applying registration transformations
-        micron_res: boolean
-            whether the cells have been scaled to mircon resolution or not. will be converted back before returning
 
         factor: float
             factor by which you shrink the boundary of the CCF for removing edge cells
@@ -263,7 +261,7 @@ class CellCounts:
 
         return cells_out
 
-    def create_counts(self, cells, cropped=False):
+    def create_counts(self, cells):
         """
         Import list of acronyms of brain regions
 
@@ -279,9 +277,6 @@ class CellCounts:
 
         # convert cells to np.array() and convert to microns for counting
         cells = np.array(cells) * self.resolution
-        
-        if cropped:
-            cells = self.crop_cells(cells)
 
         # get list of all regions and region IDs from .json file
         self.get_region_lists()

@@ -12,8 +12,6 @@ import pandas as pd
 from ng_link import NgState
 from ng_link.ng_state import get_points_from_xml
 
-from .utils import CellCounts
-
 # IO types
 PathLike = Union[str, Path]
 
@@ -133,8 +131,6 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
     # Get cells from XML
     cells = get_points_from_xml(params["cells_precomputed"]["xml_path"])
     cells = list(cells)
-
-    ccf_dir = Path(os.path.dirname(os.path.realpath(__file__))).parent
 
     generate_cff_cell_counting(
         params["ccf_cells_precomputed"]["input_path"],

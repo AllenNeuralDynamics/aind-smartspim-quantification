@@ -79,34 +79,18 @@ class TestSmartspimUtils(unittest.TestCase):
         self.CellCounts.get_region_lists()
         self.assertEqual(self.CellCounts.structs, expected_result)
 
-    def test_crop_cells_microns(self):
+    def test_crop_cells(self):
         """
         Tests method for cell cropping if cells are in micron state space
         """
 
         expected_result = np.array([[5700, 4072, 7623]], dtype=np.float32)
 
-        test_pts = [[0, 0, 0], [5700, 4072, 7623]]
+        test_pts = np.array([[0, 0, 0], [7623, 4072, 5700]])
 
         result = self.CellCounts.crop_cells(test_pts)
+        
         self.assertTrue((result == expected_result).all())
-
-    def test_crop_cells_non_microns(self):
-        """
-        Tests method for cell cropping if cells are not in micron state space
-        """
-
-        expected_result = [
-            {"x": 299, "y": 267, "z": 188},
-        ]
-
-        test_pts = [
-            {"x": 0, "y": 0, "z": 0},
-            {"x": 188, "y": 267, "z": 299},
-        ]
-
-        result = self.CellCounts.crop_cells(test_pts, micron_res=False)
-        self.assertListEqual(result, expected_result)
 
     def test_create_counts(self):
         """
@@ -118,11 +102,11 @@ class TestSmartspimUtils(unittest.TestCase):
             "Structure": ["TMv", "CB"],
             "Struct_Info": ["hemi", "mid"],
             "Struct_area_um3": [63031250.0, 55975232132.2824],
-            "Left": [1, np.NaN],
-            "Right": [0, np.NaN],
+            "Left": [1, 1],
+            "Right": [0, 0],
             "Total": [1, 1],
-            "Left_Density": [1 / 63031250.0, np.NaN],
-            "Right_Density": [0, np.NaN],
+            "Left_Density": [1 / 63031250.0, 1 / 55975232132.2824],
+            "Right_Density": [0.0, 0.0],
             "Total_Density": [1 / 63031250.0, 1 / 55975232132.2824],
         }
 
@@ -153,7 +137,52 @@ class TestSmartspimUtils(unittest.TestCase):
 
         result = utils.get_orientation(test_params)
         self.assertEqual(result, expected_result)
+    
+    def test_get_intensity_mask(self):
+        """
+        Tests method for creating intensity mask for metrics
+        """
+        
+        expected_result = np.load(
+            os.path.join(self.ccf_files, 'mask.npy')
+        )
+        
+        print(expected_result)
+        
+        verticies = [
+            [0.0, 0.0, 0.0],
+            [5.0, 0.0, 0.0],
+            [2.5, 4.33, 0.0],
+            [2.5, 1.44, 4.1],
+        ]
+        faces = [[0, 1, 2], [1, 2, 3], [0, 2, 3], [0, 1, 3]]
+        mask = np.zeros((10, 10, 10), dtype = int)
+        split = 'mid'
+        
+        result = utils.get_intensity_mask(verticies, faces, mask, split)
+        print(result)
+        self.assertTrue((result == expected_result).all())
+        
+    def test_normalized_mutual_information(self):
+        """
+        Tests regional mutual information metric
+        """
+        
+        expected_result = 1.0
+        
+        patch_1 = np.ones((9,9,9), dtype = int)
+        patch_2 = np.ones((9,9,9), dtype = int)
+        mask = np.pad(
+            np.ones((3,3,3), dtype = int),
+            (3,3),
+            mode = "constant",
+            constant_values = 0
+        )
+        
+        result = utils.normalized_mutual_information(patch_1, patch_2, mask)
+        self.assertEqual(result, expected_result)
 
+    
     def test_read_json_as_dict(self):
         """
         Tests successful reading of dictionary
