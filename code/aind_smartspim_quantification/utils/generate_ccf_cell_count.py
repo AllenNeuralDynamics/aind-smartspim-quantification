@@ -173,7 +173,10 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
             },
             {
                 "type": "segmentation",
-                "source": f"precomputed:///{params['ccf_cells_precomputed']['output_path']}",
+                "source": {
+                    "url": f"precomputed://{params['ccf_cells_precomputed']['output_path']}",
+                    "transform": {"matrix": [[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]]},
+                },
                 "tab": "source",
                 "name": "cell_counting_in_CCF",
             },
@@ -184,7 +187,7 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
         input_config=ccf_cell_count,
         mount_service="s3",
         bucket_path="aind-open-data",
-        output_json=params["output_ng_link"],
+        output_dir=params["output_ng_link"],
     )
 
     return neuroglancer_link

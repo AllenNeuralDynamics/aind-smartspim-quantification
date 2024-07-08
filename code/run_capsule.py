@@ -160,6 +160,9 @@ def run():
         data_folder=data_folder
     )
 
+    print("Pipeline config: ", pipeline_config)
+    print("Data folder contents: ", os.listdir(data_folder))
+
     # get default configs
     default_config = get_yaml_config(
         os.path.abspath(
@@ -172,19 +175,52 @@ def run():
     if len(ccf_folder):
         ccf_folder = ccf_folder[0]
 
-    print("Pipeline config: ", pipeline_config)
-    print("Data folder contents: ", os.listdir(data_folder))
-
     # add paths to default_config
     default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
     default_config["cell_segmentation_folder"] = os.path.abspath(
         f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
     )
 
+    # add paths to ls_to_template transforms
+    default_config["input_params"]["template_transforms"] = [
+        os.path.abspath(
+            glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
+        ),
+        os.path.abspath(
+            glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+        ),
+    ]
+
+    # add paths to template_to_ccf transforms
+    default_config["input_params"]["ccf_transforms"] = [
+        os.path.abspath(
+            f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
+        ),
+        os.path.abspath(
+            f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
+        ),
+    ]
+
+    # add paths to the nifti files of the template and ccf
+    default_config["input_params"]["image_files"] = {
+        "ccf_template": os.path.abspath(
+            f"{data_folder}/lightsheet_template_ccf_registration/ccf_average_template_25.nii.gz"
+        ),
+        "smartspim_template": os.path.abspath(
+            f"{data_folder}/lightsheet_template_ccf_registration/smartspim_lca_template_25.nii.gz"
+        ),
+    }
+
+    print("Pipeline config: ", pipeline_config)
+    print("Data folder contents: ", os.listdir(data_folder))
+
     # add orientation information to default_config
     acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
     acquisition_configs = utils.read_json_as_dict(acquisition_path)
     default_config["input_params"]["orientation"] = acquisition_configs["axes"]
+
+    # TODO dont hard code this
+    default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
 
     # combine configs
     smartspim_config = set_up_pipeline_parameters(
