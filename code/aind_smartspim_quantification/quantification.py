@@ -772,13 +772,13 @@ def main(
         'registered_path': registered_zarr
     }
     
-    metrics = quantification_metrics(**metric_params)
+    #metrics = quantification_metrics(**metric_params)
     
-    metric_path = os.path.abspath(
-        f'{smartspim_config["save_path"]}/region_metrics.csv'
-    )
+    #metric_path = os.path.abspath(
+    #    f'{smartspim_config["save_path"]}/region_metrics.csv'
+    #)
     
-    metrics.to_csv(metric_path)
+    #metrics.to_csv(metric_path)
 
     # Create visualization folders
     ccf_cells_precomputed, cells_precomputed = create_visualization_folders(
