@@ -100,7 +100,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     ]
     default_config["input_params"][
         "detected_cells_xml_path"
-    ] = f"{default_config['cell_segmentation_folder']}/"
+    ] = default_config['stitched_s3_path'].split('/')[-1] + '/' + default_config['cell_segmentation_folder']
     default_config["input_params"][
         "ccf_transforms_path"
     ] = f"{default_config['ccf_registration_folder']}/"
@@ -253,7 +253,6 @@ def run():
 
     smartspim_config["name"] = smartspim_dataset_name
     smartspim_config["institute_abbreviation"] = institute_abbreviation
-
     quantification.main(
         data_folder=Path(data_folder),
         output_quantified_folder=Path(results_folder),
