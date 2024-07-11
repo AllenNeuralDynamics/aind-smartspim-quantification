@@ -18,6 +18,7 @@ from glob import glob
 from pathlib import Path
 
 import ants
+import boto3
 import numpy as np
 import pandas as pd
 from aind_data_schema.core.processing import DataProcess, ProcessName
@@ -95,6 +96,87 @@ def read_xml(
                     reg_dims[0] - (cell.z / ds),
                     reg_dims[1] - (cell.y / ds),
                     reg_dims[2] - (cell.x / ds),
+                )
+            )
+
+    return cells
+
+def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str) -> list:
+    """
+    Imports cell locations from segmentation output
+
+    Parameters
+    -------------
+    seg_path: PathLike
+        Path where the .xml file is located
+    reg_dims: list
+        Resolution (pixels) of the image used for segmentation. Orientation [x (ML), z (DV), y (AP)]
+    ds: int
+        factor by which image for registration was downsampled from input_dims
+    orient: str
+        the orientation the brain was imaged
+    insititute: str
+        the institution that imaged the dataset
+
+    Returns
+    -------------
+    list
+        List with cell locations as tuples (x (ML), y (AP), z (DV))
+    """
+    print(f"seg_path being used is: {seg_path}")
+    client = boto3.client('s3')
+
+    res = client.get_object(
+        Bucket='aind-open-data',
+        Key=seg_path[:-1]
+    )
+
+
+    xml_file = res['Body'].read()
+    file_cells = xmltodict.parse(xml_file)['CellCounter_Marker_File']['Marker_Data']['Marker_Type']['Marker']
+
+    cells = []
+
+    for cell in file_cells:
+        # spl is not a real orientation. but a bug from early acquisition script
+        if orient == 'spr':
+            cells.append(
+                (    
+                    int(cell['MarkerZ']) / ds,
+                    reg_dims[1] - (int(cell['MarkerY']) / ds),
+                    reg_dims[2] - (int(cell['MarkerX']) / ds)
+                )
+            )
+        elif orient == 'spl' and institute == 'AIBS':
+            cells.append(
+                (
+                    int(cell["MarkerZ"]) / ds,
+                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
+                    int(cell["MarkerX"]) / ds,
+                )
+            )
+        elif orient == 'spl' and institute == 'AIND':
+            cells.append(
+                (
+                    int(cell['MarkerZ']) / ds, 
+                    int(cell['MarkerY']) / ds, 
+                    int(cell['MarkerX']) / ds
+                )
+            )
+        elif orient == 'sal':
+            cells.append(
+                (
+                    int(cell['MarkerZ']) / ds, 
+                    int(cell['MarkerY']) / ds, 
+                    int(cell['MarkerX']) / ds
+                )
+            )
+        elif orient == 'rpi':
+            cells.append(
+                (
+                    reg_dims[0] - (int(cell['MarkerZ']) / ds),
+                    reg_dims[1] - (int(cell['MarkerY'])  / ds),
+                    reg_dims[2] - (int(cell['MarkerX']) / ds),
                 )
             )
 
@@ -281,7 +363,7 @@ def write_transformed_cells(
     logger.info("Saving transformed cell locations to XML")
     for coord in tqdm(cell_transformed, total=len(cell_transformed)):
         coord = [dim if dim > 1 else 1.0 for dim in coord]
-        coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
+        coord_dict = {"x": coord[0], "y": coord[1], "z": coord[2]}
         cells.append(Cell(coord_dict, "cell"))
 
     transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")
