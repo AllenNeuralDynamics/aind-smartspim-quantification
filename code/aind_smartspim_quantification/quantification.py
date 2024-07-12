@@ -548,7 +548,7 @@ def cell_quantification(
 
     # Getting cell locations and ccf transformations
     orient = utils.get_orientation(orientation)
-    raw_cells = read_xml(
+    raw_cells = read_aws_xml(
         detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
     )
 

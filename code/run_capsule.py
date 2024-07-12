@@ -98,12 +98,12 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     default_config["input_params"]["downsample_res"] = pipeline_config["registration"][
         "input_scale"
     ]
-    #default_config["input_params"][
-    #    "detected_cells_xml_path"
-    #] = default_config['stitched_s3_path'].split('/')[-1] + '/' + default_config['cell_segmentation_folder']
     default_config["input_params"][
         "detected_cells_xml_path"
-    ] = default_config['cell_segmentation_folder']
+    ] = default_config['stitched_s3_path'].split('/')[-1] + '/' + default_config['cell_segmentation_folder']
+    #default_config["input_params"][
+    #    "detected_cells_xml_path"
+    #] = default_config['cell_segmentation_folder']
     default_config["input_params"][
         "ccf_transforms_path"
     ] = f"{default_config['ccf_registration_folder']}/"
