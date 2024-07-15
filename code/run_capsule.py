@@ -183,9 +183,8 @@ def run():
     default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
 
     # removed the word "cell_" from prior to the "{pipeline_config['quantification']['channel']"
-    default_config["cell_segmentation_folder"] = os.path.abspath(
-        f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
-    )
+    default_config["cell_segmentation_folder"] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+  
 
     # add paths to ls_to_template transforms
     default_config["input_params"]["template_transforms"] = [
