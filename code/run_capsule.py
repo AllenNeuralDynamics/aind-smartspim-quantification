@@ -101,9 +101,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     default_config["input_params"][
         "detected_cells_xml_path"
     ] = default_config['stitched_s3_path'].split('/')[-1] + '/' + default_config['cell_segmentation_folder']
-    #default_config["input_params"][
-    #    "detected_cells_xml_path"
-    #] = default_config['cell_segmentation_folder']
+
     default_config["input_params"][
         "ccf_transforms_path"
     ] = f"{default_config['ccf_registration_folder']}/"
@@ -185,7 +183,6 @@ def run():
     # removed the word "cell_" from prior to the "{pipeline_config['quantification']['channel']"
     default_config["cell_segmentation_folder"] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
   
-
     # add paths to ls_to_template transforms
     default_config["input_params"]["template_transforms"] = [
         os.path.abspath(
