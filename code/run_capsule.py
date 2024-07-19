@@ -147,6 +147,9 @@ def run():
     results_folder = os.path.abspath("../results")
     scratch_folder = os.path.abspath("../scratch")
 
+    mode = str(sys.argv[1:])
+    mode = mode.replace("[", "").replace("]", "").casefold()
+
     # It is assumed that these files
     # will be in the data folder
     required_input_elements = []
@@ -252,6 +255,14 @@ def run():
 
     smartspim_config["name"] = smartspim_dataset_name
     smartspim_config["institute_abbreviation"] = institute_abbreviation
+
+    if detect in mode:
+        smartspim_config['input_params']["mode"] = 'detect'
+    elif 'reprocess' in mode:
+        smartspim_config['input_params']["mode"] = 'detect'
+    else:
+        raise NotImplementedError(f"The mode {mode} has not been implemented")
+
     quantification.main(
         data_folder=Path(data_folder),
         output_quantified_folder=Path(results_folder),

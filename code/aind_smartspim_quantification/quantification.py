@@ -475,6 +475,7 @@ def cell_quantification(
     template_transforms: list,
     ccf_transforms: list,
     image_files: dict,
+    mode: str,
     logger: logging.Logger,
 ):
     """
@@ -526,6 +527,9 @@ def cell_quantification(
     image_files: dict
         Pathways to the nifti files for the smartspim template and ccf
 
+    mode: str
+        the condition this script is being run: Options ["detect", "reprocess"]
+
     logger: logging.Logger
         logging object
 
@@ -547,9 +551,14 @@ def cell_quantification(
 
     # Getting cell locations and ccf transformations
     orient = utils.get_orientation(orientation)
-    raw_cells = read_aws_xml(
-        detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
+    if 'detect' in mode:
+        raw_cells = read_xml(
+            detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
     )
+    elif 'reprocess' in mode:
+        raw_cells = read_aws_xml(
+            detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
+        )
 
     scaled_cells = scale_cells(raw_cells, scaling)
     template_params = utils.get_template_info(image_files["smartspim_template"])
