@@ -554,7 +554,7 @@ def cell_quantification(
     if 'detect' in mode:
         raw_cells = read_xml(
             detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
-    )
+        )
     elif 'reprocess' in mode:
         raw_cells = read_aws_xml(
             detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
