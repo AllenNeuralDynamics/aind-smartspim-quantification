@@ -257,7 +257,7 @@ def run():
     smartspim_config["name"] = smartspim_dataset_name
     smartspim_config["institute_abbreviation"] = institute_abbreviation
 
-    if detect in mode:
+    if 'detect' in mode:
         smartspim_config['input_params']["mode"] = 'detect'
     elif 'reprocess' in mode:
         smartspim_config['input_params']["mode"] = 'detect'
