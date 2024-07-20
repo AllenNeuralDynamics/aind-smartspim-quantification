@@ -99,9 +99,13 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     default_config["input_params"]["downsample_res"] = pipeline_config["registration"][
         "input_scale"
     ]
-    default_config["input_params"][
-        "detected_cells_xml_path"
-    ] = default_config['stitched_s3_path'].split('/')[-1] + '/' + default_config['cell_segmentation_folder']
+
+    if default_config["input_params"]["mode"] == 'detect':
+        default_config["input_params"]["detected_cells_xml_path"] = f"{default_config['cell_segmentation_folder']}/"
+    elif default_config["input_params"]["mode"] == 'reprocess':
+        default_config["input_params"][
+            "detected_cells_xml_path"
+        ] = default_config['stitched_s3_path'].split('/')[-1] + '/' + default_config['cell_segmentation_folder']
 
     default_config["input_params"][
         "ccf_transforms_path"
@@ -184,9 +188,18 @@ def run():
     # add paths to default_config
     default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
 
-    # removed the word "cell_" from prior to the "{pipeline_config['quantification']['channel']"
-    default_config["cell_segmentation_folder"] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
-  
+    # add mode information
+    if 'detect' in mode:
+        default_config["cell_segmentation_folder"] = os.path.abspath(
+            f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
+        )
+        default_config['input_params']["mode"] = 'detect'
+    elif 'reprocess' in mode:
+        default_config["cell_segmentation_folder"] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+        default_config['input_params']["mode"] = 'reprocess'
+    else:
+        raise NotImplementedError(f"The mode {mode} has not been implemented")
+
     # add paths to ls_to_template transforms
     default_config["input_params"]["template_transforms"] = [
         os.path.abspath(
@@ -256,13 +269,6 @@ def run():
 
     smartspim_config["name"] = smartspim_dataset_name
     smartspim_config["institute_abbreviation"] = institute_abbreviation
-
-    if 'detect' in mode:
-        smartspim_config['input_params']["mode"] = 'detect'
-    elif 'reprocess' in mode:
-        smartspim_config['input_params']["mode"] = 'detect'
-    else:
-        raise NotImplementedError(f"The mode {mode} has not been implemented")
 
     quantification.main(
         data_folder=Path(data_folder),
