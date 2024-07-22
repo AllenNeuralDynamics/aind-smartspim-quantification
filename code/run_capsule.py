@@ -90,7 +90,15 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     default_config["fused_folder"] = os.path.abspath(
         f"{pipeline_config['quantification']['fused_folder']}"
     )
-    default_config["stitched_s3_path"] = pipeline_config["stitching"]["s3_path"]
+
+    # Added to handle registration testing
+    s3_path = pipeline_config["stitching"]["s3_path"]
+    if 'test' in s3_path:
+        s3_seg_path = s3_path.replace('test', 'stitched')
+    else:
+        s3_seg_path = s3_path
+
+    default_config["stitched_s3_path"] = s3_path
     default_config['registration_channel'] = pipeline_config['stitching']['channel']
     default_config["channel_name"] = pipeline_config["quantification"]["channel"]
     default_config["save_path"] = os.path.abspath(
@@ -105,7 +113,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     elif default_config["input_params"]["mode"] == 'reprocess':
         default_config["input_params"][
             "detected_cells_xml_path"
-        ] = default_config['stitched_s3_path'].split('/')[-1] + '/' + default_config['cell_segmentation_folder']
+        ] = s3_seg_path.split('/')[-1] + '/' + default_config['cell_segmentation_folder']
 
     default_config["input_params"][
         "ccf_transforms_path"

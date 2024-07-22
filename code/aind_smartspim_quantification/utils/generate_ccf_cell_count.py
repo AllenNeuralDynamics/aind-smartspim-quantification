@@ -169,15 +169,15 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
                     "transform": {
                         "matrix": [[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]],
                         "outputDimensions": {
-                            "x": {"voxel_size": micron_res, "unit": "microns"},
-                            "y": {"voxel_size": micron_res, "unit": "microns"},
-                            "z": {"voxel_size": micron_res, "unit": "microns"}
+                            "x": [micron_res / 10**6, "m"],
+                            "y": [micron_res / 10**6, "m"],
+                            "z": [micron_res / 10**6, "m"]
                         }
                     }
                 },
                 "tab": "source",
                 "name": "cell_counting_in_CCF",
-            },
+            }
         ],
     }
 
