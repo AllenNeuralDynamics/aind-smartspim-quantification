@@ -96,7 +96,7 @@ def read_xml(
                 (
                     reg_dims[0] - (cell.z / ds),
                     reg_dims[1] - (cell.y / ds),
-                    reg_dims[2] - (cell.x / ds),
+                    cell.x / ds,
                 )
             )
 
@@ -173,9 +173,9 @@ def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, insti
         elif orient == 'rpi':
             cells.append(
                 (
-                    reg_dims[0] - (int(cell['MarkerZ']) / ds),
+                    reg_dims[0] - (int(cell['MarkerX']) / ds),
                     reg_dims[1] - (int(cell['MarkerY']) / ds),
-                    reg_dims[2] - (int(cell['MarkerX']) / ds),
+                    reg_dims[2] - (int(cell['MarkerZ']) / ds),
                 )
             )
 
