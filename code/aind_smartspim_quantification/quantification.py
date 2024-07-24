@@ -129,7 +129,7 @@ def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, insti
 
     res = client.get_object(
         Bucket='aind-open-data',
-        Key=seg_path + '/classified_cells.xml'
+        Key=seg_path + '/detected_cells.xml'
     )
     xml_file = res['Body'].read()
     file_cells = xmltodict.parse(xml_file)['CellCounter_Marker_File']['Marker_Data']['Marker_Type']['Marker']
