@@ -594,7 +594,7 @@ def cell_quantification(
 
     # removing cells that are outside the brain
     cells_array = np.array(cells_transformed) * reference_microns_ccf
-    cells_cropped = count.crop_cells(cells_array) / reference_microns_ccf
+    cells_cropped = cell_array #count.crop_cells(cells_array) / reference_microns_ccf
 
     transformed_cropped = []
     for cell in cells_cropped:
