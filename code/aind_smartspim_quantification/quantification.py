@@ -175,7 +175,8 @@ def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, insti
                 (
                     int(cell['MarkerZ']) / ds,
                     reg_dims[1] - (int(cell['MarkerY']) / ds),
-                    int(cell['MarkerX']) / ds,                 )
+                    int(cell['MarkerX']) / ds
+                )
             )
 
     return cells
