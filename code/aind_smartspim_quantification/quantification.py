@@ -850,24 +850,24 @@ def main(
         f'{smartspim_config["input_params"]["ccf_transforms_path"]}/OMEZarr/image.zarr/0/'   
     )
     
-    #metric_params = {
-    #    'region_list': smartspim_config['region_list'],
-    #    'reference_microns_ccf': smartspim_config['input_params']['reference_microns_ccf'],
-    #    'reverse_transforms': smartspim_config['reverse_transforms'],
-    #    'image_files': smartspim_config["input_params"]['image_files'],
-    #    'orientation': smartspim_config['input_params']['orientation'],
-    #    'reverse_scaling': smartspim_config['reverse_scaling'],
-    #    'image_path': image_path,
-    #    'registered_path': registered_zarr
-    #}
+    metric_params = {
+        'region_list': smartspim_config['region_list'],
+        'reference_microns_ccf': smartspim_config['input_params']['reference_microns_ccf'],
+        'reverse_transforms': smartspim_config['reverse_transforms'],
+        'image_files': smartspim_config["input_params"]['image_files'],
+        'orientation': smartspim_config['input_params']['orientation'],
+        'reverse_scaling': smartspim_config['reverse_scaling'],
+        'image_path': image_path,
+        'registered_path': registered_zarr
+    }
     
-    #metrics = quantification_metrics(**metric_params)
+    metrics = quantification_metrics(**metric_params)
     
-    #metric_path = os.path.abspath(
-    #    f'{smartspim_config["save_path"]}/region_metrics.csv'
-    #)
+    metric_path = os.path.abspath(
+        f'{smartspim_config["save_path"]}/region_metrics.csv'
+    )
     
-    #metrics.to_csv(metric_path)
+    metrics.to_csv(metric_path)
 
     # Create visualization folders
     ccf_cells_precomputed, cells_precomputed = create_visualization_folders(
