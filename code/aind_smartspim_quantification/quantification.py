@@ -273,7 +273,7 @@ def convert_from_ants_space(template_parameters: dict, cells: np.ndarray):
     return pts
 
 
-def apply_transforms_to_points(ants_pts: np.ndarray, transforms: list) -> np.ndarray:
+def apply_transforms_to_points(ants_pts: np.ndarray, transforms: list, invert: tuple) -> np.ndarray:
     """
     Takes the cell locations that have been converted into the correct
     physical space needed for the provided transforms and registers the points
@@ -294,7 +294,7 @@ def apply_transforms_to_points(ants_pts: np.ndarray, transforms: list) -> np.nda
 
     df = pd.DataFrame(ants_pts, columns=["x", "y", "z"])
     transformed_pts = ants.apply_transforms_to_points(
-        3, df, transforms, whichtoinvert=(False, True)
+        3, df, transforms, whichtoinvert=invert
     )
 
     return np.array(transformed_pts)
@@ -574,10 +574,18 @@ def cell_quantification(
     ants_cells = convert_to_ants_space(template_params, orient_cells)
 
     logger.info("Registering Cells to SmartSPIM template")
-    template_cells = apply_transforms_to_points(ants_cells, template_transforms)
+    template_cells = apply_transforms_to_points(
+        ants_cells, 
+        template_transforms,
+        invert = (False, True)
+    )
 
     logger.info("Convert template cells into CCF space and orientation")
-    ccf_pts = apply_transforms_to_points(template_cells, ccf_transforms)
+    ccf_pts = apply_transforms_to_points(
+        template_cells,
+        ccf_transforms,
+        invert = (False, True)
+    )
 
     logger.info("Conver cells back into index space")
     ccf_params = utils.get_template_info(image_files["ccf_template"])
