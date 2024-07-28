@@ -700,7 +700,7 @@ def quantification_metrics(
     
         #Get the mesh oriented in the same direction as the ccf
         scaled_verts = verts / reference_microns_ccf
-        oriented_verts = scaled_verts[:, [2, 1, 0]]
+        oriented_verts = scaled_verts[:, [1, 2, 0]]
         
         mask = np.zeros(shape = ccf_img.shape, dtype = np.int8)
         mask = utils.get_intensity_mask(

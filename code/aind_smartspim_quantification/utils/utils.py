@@ -424,7 +424,7 @@ def get_volume(vertices, faces, split):
         
     return volume
 
-def get_mesh_interrior_points(mesh) -> tuple:
+def get_mesh_interior_points(mesh) -> tuple:
     """
     Collects all points that within a given vedo.Mesh
 
@@ -476,16 +476,16 @@ def get_intensity_mask(vertices, faces, mask, split) -> np.array:
         vert_L, vert_R = vertices[:break_pt], vertices[break_pt:]
         
         region_L = vedo.Mesh([vert_L, faces])
-        indicies = get_mesh_interrior_points(region_L)
+        indicies = get_mesh_interior_points(region_L)
         mask[indicies]  = 255
         
         region_R = vedo.Mesh([vert_R, faces])
-        indicies = get_mesh_interrior_points(region_R)
+        indicies = get_mesh_interior_points(region_R)
         mask[indicies]  = 255
         
     else:
         region = vedo.Mesh([vertices, faces])
-        indicies = get_mesh_interrior_points(region)
+        indicies = get_mesh_interior_points(region)
         mask[indicies]  = 255
         
     return mask
