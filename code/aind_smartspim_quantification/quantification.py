@@ -771,6 +771,10 @@ def quantification_metrics(
                 norm_mutual_info
             ]
         )
+
+        # currently not saving plots but can
+        #planes = utils.get_plot_planes(mask, region_info[region][1]):
+        #utils.plot_overlays(img_oriented, mask, planes)
     
     cols = [
         'Acronym',

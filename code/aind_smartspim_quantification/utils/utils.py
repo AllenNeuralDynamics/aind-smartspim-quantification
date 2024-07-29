@@ -17,6 +17,7 @@ import platform
 import time
 from datetime import datetime
 from typing import List
+from skimage import measure
 from sklearn.metrics import normalized_mutual_info_score
 
 import ants
@@ -549,8 +550,9 @@ def normalized_mutual_information(
     ccf_img = ccf_img.astype(int)
     
     # mutual information is invariant to scaling so this should not matter
-    if img.dtype == float:
-        img = int((img - img.min()) - (img.max() - img.min()) * ccf_img.max())
+    if img.dtype == np.dtype(np.float32):
+        img = (img - img.min()) / (img.max() - img.min()) * ccf_img.max()
+        img = img.astype(int)
     
     patch_1 = np.where(mask > 0, ccf_img, 0)
     patch_2 = np.where(mask > 0, img, 0)
@@ -574,6 +576,38 @@ def get_region_intensity(img, mask) -> np.array:
     """
     masked_img = np.where(mask > 0, img, 0)
     return masked_img
+
+def get_plot_planes(mask, split):
+    
+    if split == "hemi":
+        mask = mask[:, :, :mask.shape[3]//2]
+    
+    props = measure.regionprops(mask)
+    planes = props[0].centroid
+    
+    return [int(p) for p in planes]
+
+def plot_overlays(img: np.array, mask: np.array, planes: list):
+
+    mask = np.where(mask == 0, np.nan, mask)
+    vmax = mask.max()
+    
+    fig, ax = plt.subplots(nrows = 1, ncols = 3)
+    
+    i = img[planes[0], :, :]
+    m = mask[planes[0], :, :]
+    ax[0].imshow(i)
+    ax[0].imshow(m, cmap = 'jet_r', vmax = vmax, alpha = 0.6)
+    
+    i = img[:, planes[1], :]
+    m = mask[:, planes[1], :]
+    ax[1].imshow(i)
+    ax[1].imshow(m, cmap = 'jet_r', vmax = vmax, alpha = 0.6)
+    
+    i = img[:, :, planes[2]]
+    m = mask[:, :, planes[2]]
+    ax[2].imshow(i)
+    ax[2].imshow(m, cmap = 'jet_r', vmax = vmax, alpha = 0.6)
 
 def __read_zarr_image(image_path: PathLike):
     """
