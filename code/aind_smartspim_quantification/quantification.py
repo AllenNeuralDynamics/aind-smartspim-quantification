@@ -175,7 +175,7 @@ def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, insti
                 (
                     int(cell['MarkerZ']) / ds,
                     reg_dims[1] - (int(cell['MarkerY']) / ds),
-                    int(cell['MarkerX']) / ds
+                    reg_dims[2] - (int(cell['MarkerX']) / ds)
                 )
             )
 
@@ -560,13 +560,17 @@ def cell_quantification(
             detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
         )
 
+    # This is beacuse of a bug in registration
+    if orientation == 'rpi':
+        scaling = scaling[::-1]
+
     scaled_cells = scale_cells(raw_cells, scaling)
     template_params = utils.get_template_info(image_files["smartspim_template"])
 
     logger.info(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
-    _, swapped = utils.get_orientation_transform(orient, template_params["orientation"])
+    _, swapped, _ = utils.get_orientation_transform(orient, template_params["orientation"])
     orient_cells = scaled_cells[:, swapped]
 
     logger.info("Converting oriented cells into ANTs physical space")
@@ -591,7 +595,7 @@ def cell_quantification(
     ccf_params = utils.get_template_info(image_files["ccf_template"])
     ccf_cells = convert_from_ants_space(ccf_params, ccf_pts)
 
-    _, swapped = utils.get_orientation_transform(
+    _, swapped, _ = utils.get_orientation_transform(
         template_params["orientation"], ccf_params["orientation"]
     )
     cells_transformed = ccf_cells[:, swapped]
@@ -700,11 +704,11 @@ def quantification_metrics(
     
         #Get the mesh oriented in the same direction as the ccf
         scaled_verts = verts / reference_microns_ccf
-        oriented_verts = scaled_verts[:, [1, 2, 0]]
+        oriented_verts = scaled_verts[:, [0, 2, 1]]
         
         mask = np.zeros(shape = ccf_img.shape, dtype = np.int8)
         mask = utils.get_intensity_mask(
-            oriented_verts,
+            scaled_verts[:, [2, 1, 0]],
             faces,
             mask, 
             split = region_info[region][1]
@@ -736,8 +740,13 @@ def quantification_metrics(
         
         # convert to orientation of the zarr image
         orient = utils.get_orientation(orientation)
-        _, swapped = utils.get_orientation_transform(template_params['orientation'], orient)
+        _, swapped, mat = utils.get_orientation_transform(template_params['orientation'], orient)
         converted_verts  = converted_verts [:, swapped]
+
+        # this is also because of the bug in registration
+        if orientation == 'rpi':
+            reverse_scaling = reverse_scaling[::-1]
+
         out_verts = scale_cells(converted_verts , reverse_scaling)
         
         # get metrics
@@ -746,10 +755,12 @@ def quantification_metrics(
             faces, 
             region_info[region][1]
         )
+
+        img_oriented = utils.orient_image(img, mat)
         
-        mask = np.zeros(shape = img.shape, dtype = np.int8)
+        mask = np.zeros(shape = img_oriented.shape, dtype = np.int8)
         mask = utils.get_intensity_mask(out_verts, faces, mask, region_info[region][1])
-        intensity = utils.get_region_intensity(img, mask)
+        intensity = utils.get_region_intensity(img_oriented, mask)
 
         metrics.append(
             [

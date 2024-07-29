@@ -167,11 +167,19 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
                 "source": {
                     "url": f"precomputed://{params['ccf_cells_precomputed']['output_path']}",
                     "transform": {
-                        "matrix": [[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]],
+                        "matrix": [
+                            [1, 0, 0, 0, 0, 0],
+                            [0, 1, 0, 0, 0, 0], 
+                            [0, 0, 0, 0, 1, 0],  
+                            [0, 0, 0, 1, 0, 0],  
+                            [0, 0, 1, 0, 0, 0],  
+                        ],
                         "outputDimensions": {
-                            "x": [micron_res / 10**6, "m"],
-                            "y": [micron_res / 10**6, "m"],
-                            "z": [micron_res / 10**6, "m"]
+                            "t": [0.001, "s"],
+                            "c'": [1, ""],
+                            "z": [params['res'], "m"],
+                            "y": [params['res'], "m"],
+                            "x": [params['res'], "m"],
                         }
                     }
                 },

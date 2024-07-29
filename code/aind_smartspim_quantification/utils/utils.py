@@ -376,8 +376,34 @@ def get_orientation_transform(orientation_in: str, orientation_out: str) -> tupl
 
     original, swapped = np.where(transform_matrix.T)
 
-    return original, swapped
+    return original, swapped, transform_matrix
 
+def orient_image(img: np.array, orient_mat: np.array) -> np.array:
+    """
+    Orients array based on orientation matrix
+
+    Parameters
+    ----------
+    img : np.array
+        The image that is being oriented
+    orient_mat : np.array
+        identity matrix outlining the tranforms
+
+    Returns
+    -------
+    img_out
+        reoriented image
+    """
+    
+    original, swapped = np.where(orient_mat)
+    img_out = np.moveaxis(img, original, swapped)
+    
+    for c, row in enumerate(orient_mat.T):
+        val = np.where(row)[0][0]
+        if row[val] == -1:
+            img_out = np.flip(img_out, c)
+    
+    return img_out
 
 def get_template_info(file_path: PathLike) -> dict:
     """
