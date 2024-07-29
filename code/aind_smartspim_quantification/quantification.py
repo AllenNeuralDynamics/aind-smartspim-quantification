@@ -746,6 +746,7 @@ def quantification_metrics(
         # this is also because of the bug in registration
         if orient == 'rpi':
             reverse_scaling = reverse_scaling[::-1]
+            img = utils.orient_image(img, mat)
 
         out_verts = scale_cells(converted_verts , reverse_scaling)
         
@@ -756,11 +757,9 @@ def quantification_metrics(
             region_info[region][1]
         )
 
-        img_oriented = utils.orient_image(img, mat)
-        
-        mask = np.zeros(shape = img_oriented.shape, dtype = np.int8)
+        mask = np.zeros(shape = img.shape, dtype = np.int8)
         mask = utils.get_intensity_mask(out_verts, faces, mask, region_info[region][1])
-        intensity = utils.get_region_intensity(img_oriented, mask)
+        intensity = utils.get_region_intensity(np.array(img), mask)
 
         metrics.append(
             [

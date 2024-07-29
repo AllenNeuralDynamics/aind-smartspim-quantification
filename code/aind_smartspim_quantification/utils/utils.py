@@ -451,7 +451,7 @@ def get_volume(vertices, faces, split):
         
     return volume
 
-def get_mesh_interior_points(mesh) -> tuple:
+def get_mesh_interior_points(mesh):
     """
     Collects all points that within a given vedo.Mesh
 
@@ -478,7 +478,7 @@ def get_mesh_interior_points(mesh) -> tuple:
     
     return (xs, ys, zs)
 
-def get_intensity_mask(vertices, faces, mask, split) -> np.array:
+def get_intensity_mask(vertices, faces, mask, split):
     """
     Create binary mask of a given CCF region using the verticies and 
     faces from JSON file 
@@ -570,9 +570,9 @@ def normalized_mutual_information(
     
     return nmi
  
-def get_region_intensity(img, mask) -> np.array:
+def get_region_intensity(img, mask):
     """
-    
+    Convert region mask back to original values
     """
     masked_img = np.where(mask > 0, img, 0)
     return masked_img
