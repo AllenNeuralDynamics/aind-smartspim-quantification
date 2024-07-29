@@ -561,7 +561,7 @@ def cell_quantification(
         )
 
     # This is beacuse of a bug in registration
-    if orientation == 'rpi':
+    if orient == 'rpi':
         scaling = scaling[::-1]
 
     scaled_cells = scale_cells(raw_cells, scaling)
@@ -571,7 +571,7 @@ def cell_quantification(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
     _, swapped, _ = utils.get_orientation_transform(orient, template_params["orientation"])
-    orient_cells = scaled_cells[:, swapped]
+    orient_cells = np.array(scaled_cells)[:, swapped]
 
     logger.info("Converting oriented cells into ANTs physical space")
     template_params = utils.get_template_info(image_files["smartspim_template"])
@@ -744,7 +744,7 @@ def quantification_metrics(
         converted_verts  = converted_verts [:, swapped]
 
         # this is also because of the bug in registration
-        if orientation == 'rpi':
+        if orient == 'rpi':
             reverse_scaling = reverse_scaling[::-1]
 
         out_verts = scale_cells(converted_verts , reverse_scaling)
