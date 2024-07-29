@@ -372,7 +372,7 @@ def get_orientation_transform(orientation_in: str, orientation_out: str) -> tupl
             k_reverse = reverse_dict[k]
             transform_matrix[v, output_dict[k_reverse]] = -1
 
-    if orientation_in.lower() == "spl":
+    if orientation_in.lower() == "spl" or orientation_out.lower() == "spl":
         transform_matrix = abs(transform_matrix)
 
     original, swapped = np.where(transform_matrix.T)
