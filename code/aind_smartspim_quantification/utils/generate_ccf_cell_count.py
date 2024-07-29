@@ -177,9 +177,9 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
                         "outputDimensions": {
                             "t": [0.001, "s"],
                             "c'": [1, ""],
-                            "z": [params['res'], "m"],
-                            "y": [params['res'], "m"],
-                            "x": [params['res'], "m"],
+                            "z": [micron_res / 10**6, "m"],
+                            "y": [micron_res / 10**6, "m"],
+                            "x": [micron_res / 10**6, "m"],
                         }
                     }
                 },
