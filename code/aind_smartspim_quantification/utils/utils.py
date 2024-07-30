@@ -504,16 +504,15 @@ def get_intensity_mask(vertices, faces, mask, split):
         
         region_L = vedo.Mesh([vert_L, faces])
         indicies = get_mesh_interior_points(region_L)
-        mask[indicies]  = 255
+        mask[indicies] = 1
         
         region_R = vedo.Mesh([vert_R, faces])
         indicies = get_mesh_interior_points(region_R)
-        mask[indicies]  = 255
-        
+        mask[indicies] = 1 
     else:
         region = vedo.Mesh([vertices, faces])
         indicies = get_mesh_interior_points(region)
-        mask[indicies]  = 255
+        mask[indicies] = 1
         
     return mask
 
