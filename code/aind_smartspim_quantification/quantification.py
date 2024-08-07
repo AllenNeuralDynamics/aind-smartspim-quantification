@@ -687,6 +687,7 @@ def quantification_metrics(
     
     registered_img = utils.__read_zarr_image(registered_path)
     registered_img = np.array(registered_img).squeeze()
+    registered_img = np.moveaxis(registered_img, [0, 1, 2], [2, 1, 0])
     
     ccf_img = ants.image_read(image_files["ccf_template"]).numpy()
     
