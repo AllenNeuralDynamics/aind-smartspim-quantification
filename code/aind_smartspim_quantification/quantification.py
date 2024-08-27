@@ -620,11 +620,17 @@ def cell_quantification(
     logger.info("Calculating cell counts per brain region and generating CSV")
 
     # count cells
+    region_metadata_dir = os.path.dirname(os.path.realpath(__file__))
     count_df = count.create_counts(transformed_cropped)
+    metadata_df = pd.read_csv(
+        os.path.join(region_metadata_dir, 'params/region_metadata.csv'),
+        index_col=0
+    )
+    out_df = pd.merge(metadata_df, count_df, on = 'Acronym')
 
     fname = "cell_count_by_region.csv"
     csv_path = os.path.join(save_path, fname)
-    count_df.to_csv(csv_path)
+    out_df.to_csv(csv_path)
 
     return csv_path, transformed_cells_path
 

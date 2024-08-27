@@ -295,7 +295,7 @@ class CellCounts:
 
         cols = [
             "Id",
-            "Structure",
+            "Acronym",
             "Struct_Info",
             "Struct_area_um3",
             "Left",
