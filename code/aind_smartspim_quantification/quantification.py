@@ -601,8 +601,8 @@ def cell_quantification(
     cells_transformed = ccf_cells[:, swapped]
 
     # Getting annotation map and meshes path
-    ccf_dir = os.path.dirname(os.path.realpath(__file__))
-    count = utils.CellCounts(ccf_dir, reference_microns_ccf)
+    params_dir = os.path.dirname(os.path.realpath(__file__))
+    count = utils.CellCounts(params_dir, reference_microns_ccf)
 
     # removing cells that are outside the brain
     cells_array = np.array(cells_transformed) * reference_microns_ccf
@@ -620,10 +620,9 @@ def cell_quantification(
     logger.info("Calculating cell counts per brain region and generating CSV")
 
     # count cells
-    region_metadata_dir = os.path.dirname(os.path.realpath(__file__))
     count_df = count.create_counts(transformed_cropped)
     metadata_df = pd.read_csv(
-        os.path.join(region_metadata_dir, 'params/region_metadata.csv'),
+        os.path.join(params_dir, 'params/region_metadata.csv'),
         index_col=0
     )
     out_df = pd.merge(metadata_df, count_df, on = 'Acronym')
