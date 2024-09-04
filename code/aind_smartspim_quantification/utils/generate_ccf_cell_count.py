@@ -75,7 +75,7 @@ def generate_cff_cell_counting(
         os.mkdir(output_path)
 
     df_count = pd.read_csv(input_path, index_col=0)
-    include = list(df_count["Structure"].values)
+    include = list(df_count["Acronym"].values)
 
     # get CCF id-struct pairings
     if ccf_reference_path is None:
@@ -92,7 +92,7 @@ def generate_cff_cell_counting(
         if irow["struct"] in include:
             keep_ids.append(str(irow["id"]))
             total = df_count.loc[
-                df_count["Structure"] == irow["struct"], ["Total"]
+                df_count["Acronym"] == irow["struct"], ["Total"]
             ].values.squeeze()
             keep_struct.append(irow["struct"] + " cells: " + str(total))
 
