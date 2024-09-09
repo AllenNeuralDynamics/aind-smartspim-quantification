@@ -93,13 +93,13 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
 
     # Added to handle registration testing
     s3_path = pipeline_config["stitching"]["s3_path"]
-    if 'test' in s3_path:
-        s3_seg_path = s3_path.replace('test', 'stitched')
+    if "test" in s3_path:
+        s3_seg_path = s3_path.replace("test", "stitched")
     else:
         s3_seg_path = s3_path
 
     default_config["stitched_s3_path"] = s3_path
-    default_config['registration_channel'] = pipeline_config['stitching']['channel']
+    default_config["registration_channel"] = pipeline_config["stitching"]["channel"]
     default_config["channel_name"] = pipeline_config["quantification"]["channel"]
     default_config["save_path"] = os.path.abspath(
         f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}"
@@ -108,12 +108,16 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
         "input_scale"
     ]
 
-    if default_config["input_params"]["mode"] == 'detect':
-        default_config["input_params"]["detected_cells_xml_path"] = f"{default_config['cell_segmentation_folder']}/"
-    elif default_config["input_params"]["mode"] == 'reprocess':
+    if default_config["input_params"]["mode"] == "detect":
         default_config["input_params"][
             "detected_cells_xml_path"
-        ] = s3_seg_path.split('/')[-1] + '/' + default_config['cell_segmentation_folder']
+        ] = f"{default_config['cell_segmentation_folder']}/"
+    elif default_config["input_params"]["mode"] == "reprocess":
+        default_config["input_params"]["detected_cells_xml_path"] = (
+            s3_seg_path.split("/")[-1]
+            + "/"
+            + default_config["cell_segmentation_folder"]
+        )
 
     default_config["input_params"][
         "ccf_transforms_path"
@@ -197,14 +201,16 @@ def run():
     default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
 
     # add mode information
-    if 'detect' in mode:
+    if "detect" in mode:
         default_config["cell_segmentation_folder"] = os.path.abspath(
             f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
         )
-        default_config['input_params']["mode"] = 'detect'
-    elif 'reprocess' in mode:
-        default_config["cell_segmentation_folder"] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
-        default_config['input_params']["mode"] = 'reprocess'
+        default_config["input_params"]["mode"] = "detect"
+    elif "reprocess" in mode:
+        default_config[
+            "cell_segmentation_folder"
+        ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+        default_config["input_params"]["mode"] = "reprocess"
     else:
         raise NotImplementedError(f"The mode {mode} has not been implemented")
 
@@ -245,7 +251,7 @@ def run():
             os.path.abspath(
                 f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
             ),
-        ]
+        ],
     }
 
     # add paths to the nifti files of the template and ccf
@@ -268,7 +274,7 @@ def run():
 
     # TODO dont hard code this
     default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
-    default_config["reverse_scaling"] = [25/16, 25/14.4, 25/14.4]
+    default_config["reverse_scaling"] = [25 / 16, 25 / 14.4, 25 / 14.4]
 
     # combine configs
     smartspim_config = set_up_pipeline_parameters(

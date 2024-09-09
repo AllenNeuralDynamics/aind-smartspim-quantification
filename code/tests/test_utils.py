@@ -89,7 +89,7 @@ class TestSmartspimUtils(unittest.TestCase):
         test_pts = np.array([[0, 0, 0], [7623, 4072, 5700]])
 
         result = self.CellCounts.crop_cells(test_pts)
-        
+
         self.assertTrue((result == expected_result).all())
 
     def test_create_counts(self):
@@ -137,18 +137,16 @@ class TestSmartspimUtils(unittest.TestCase):
 
         result = utils.get_orientation(test_params)
         self.assertEqual(result, expected_result)
-    
+
     def test_get_intensity_mask(self):
         """
         Tests method for creating intensity mask for metrics
         """
-        
-        expected_result = np.load(
-            os.path.join(self.ccf_files, 'mask.npy')
-        )
-        
+
+        expected_result = np.load(os.path.join(self.ccf_files, "mask.npy"))
+
         print(expected_result)
-        
+
         verticies = [
             [0.0, 0.0, 0.0],
             [5.0, 0.0, 0.0],
@@ -156,33 +154,29 @@ class TestSmartspimUtils(unittest.TestCase):
             [2.5, 1.44, 4.1],
         ]
         faces = [[0, 1, 2], [1, 2, 3], [0, 2, 3], [0, 1, 3]]
-        mask = np.zeros((10, 10, 10), dtype = int)
-        split = 'mid'
-        
+        mask = np.zeros((10, 10, 10), dtype=int)
+        split = "mid"
+
         result = utils.get_intensity_mask(verticies, faces, mask, split)
         print(result)
         self.assertTrue((result == expected_result).all())
-        
+
     def test_normalized_mutual_information(self):
         """
         Tests regional mutual information metric
         """
-        
+
         expected_result = 1.0
-        
-        patch_1 = np.ones((9,9,9), dtype = int)
-        patch_2 = np.ones((9,9,9), dtype = int)
+
+        patch_1 = np.ones((9, 9, 9), dtype=int)
+        patch_2 = np.ones((9, 9, 9), dtype=int)
         mask = np.pad(
-            np.ones((3,3,3), dtype = int),
-            (3,3),
-            mode = "constant",
-            constant_values = 0
+            np.ones((3, 3, 3), dtype=int), (3, 3), mode="constant", constant_values=0
         )
-        
+
         result = utils.normalized_mutual_information(patch_1, patch_2, mask)
         self.assertEqual(result, expected_result)
 
-    
     def test_read_json_as_dict(self):
         """
         Tests successful reading of dictionary

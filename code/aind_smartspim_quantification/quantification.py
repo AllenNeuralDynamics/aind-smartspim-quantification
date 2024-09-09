@@ -14,7 +14,6 @@ import multiprocessing
 import os
 import re
 import time
-import xmltodict
 from glob import glob
 from pathlib import Path
 
@@ -22,6 +21,7 @@ import ants
 import boto3
 import numpy as np
 import pandas as pd
+import xmltodict
 from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import get_cells, save_cells
@@ -84,13 +84,7 @@ def read_xml(
         elif orient == "spl" and institute == "AIND":
             cells.append((cell.z / ds, cell.y / ds, cell.x / ds))
         elif orient == "sal":
-            cells.append(
-                (
-                    cell.z / ds,
-                    cell.y / ds, 
-                    reg_dims[2] - (cell.x / ds)
-                )
-            )
+            cells.append((cell.z / ds, cell.y / ds, reg_dims[2] - (cell.x / ds)))
         elif orient == "rpi":
             cells.append(
                 (
@@ -102,7 +96,10 @@ def read_xml(
 
     return cells
 
-def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str) -> list:
+
+def read_aws_xml(
+    seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str
+) -> list:
     """
     Imports cell locations from segmentation output
 
@@ -125,28 +122,29 @@ def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, insti
         List with cell locations as tuples (x (ML), y (AP), z (DV))
     """
     print(f"seg_path being used is: {seg_path}")
-    client = boto3.client('s3')
+    client = boto3.client("s3")
 
     res = client.get_object(
-        Bucket='aind-open-data',
-        Key=seg_path + '/detected_cells.xml'
+        Bucket="aind-open-data", Key=seg_path + "/detected_cells.xml"
     )
-    xml_file = res['Body'].read()
-    file_cells = xmltodict.parse(xml_file)['CellCounter_Marker_File']['Marker_Data']['Marker_Type']['Marker']
+    xml_file = res["Body"].read()
+    file_cells = xmltodict.parse(xml_file)["CellCounter_Marker_File"]["Marker_Data"][
+        "Marker_Type"
+    ]["Marker"]
 
     cells = []
 
     for cell in file_cells:
         # spl is not a real orientation. but a bug from early acquisition script
-        if orient == 'spr':
+        if orient == "spr":
             cells.append(
-                (    
-                    int(cell['MarkerZ']) / ds,
-                    reg_dims[1] - (int(cell['MarkerY']) / ds),
-                    reg_dims[2] - (int(cell['MarkerX']) / ds)
+                (
+                    int(cell["MarkerZ"]) / ds,
+                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
+                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
                 )
             )
-        elif orient == 'spl' and institute == 'AIBS':
+        elif orient == "spl" and institute == "AIBS":
             cells.append(
                 (
                     int(cell["MarkerZ"]) / ds,
@@ -154,28 +152,28 @@ def read_aws_xml(seg_path: PathLike, reg_dims: list, ds: int, orient: str, insti
                     int(cell["MarkerX"]) / ds,
                 )
             )
-        elif orient == 'spl' and institute == 'AIND':
+        elif orient == "spl" and institute == "AIND":
             cells.append(
                 (
-                    int(cell['MarkerZ']) / ds, 
-                    int(cell['MarkerY']) / ds, 
-                    int(cell['MarkerX']) / ds
+                    int(cell["MarkerZ"]) / ds,
+                    int(cell["MarkerY"]) / ds,
+                    int(cell["MarkerX"]) / ds,
                 )
             )
-        elif orient == 'sal':
+        elif orient == "sal":
             cells.append(
                 (
-                    int(cell['MarkerZ']) / ds, 
-                    int(cell['MarkerY']) / ds, 
-                    reg_dims[2] - (int(cell['MarkerX']) / ds)
+                    int(cell["MarkerZ"]) / ds,
+                    int(cell["MarkerY"]) / ds,
+                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
                 )
             )
-        elif orient == 'rpi':
+        elif orient == "rpi":
             cells.append(
                 (
-                    int(cell['MarkerZ']) / ds,
-                    reg_dims[1] - (int(cell['MarkerY']) / ds),
-                    reg_dims[2] - (int(cell['MarkerX']) / ds)
+                    int(cell["MarkerZ"]) / ds,
+                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
+                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
                 )
             )
 
@@ -273,7 +271,9 @@ def convert_from_ants_space(template_parameters: dict, cells: np.ndarray):
     return pts
 
 
-def apply_transforms_to_points(ants_pts: np.ndarray, transforms: list, invert: tuple) -> np.ndarray:
+def apply_transforms_to_points(
+    ants_pts: np.ndarray, transforms: list, invert: tuple
+) -> np.ndarray:
     """
     Takes the cell locations that have been converted into the correct
     physical space needed for the provided transforms and registers the points
@@ -551,17 +551,17 @@ def cell_quantification(
 
     # Getting cell locations and ccf transformations
     orient = utils.get_orientation(orientation)
-    if 'detect' in mode:
+    if "detect" in mode:
         raw_cells = read_xml(
             detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
         )
-    elif 'reprocess' in mode:
+    elif "reprocess" in mode:
         raw_cells = read_aws_xml(
             detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
         )
 
     # This is beacuse of a bug in registration
-    if orient == 'rpi':
+    if orient == "rpi":
         scaling = scaling[::-1]
 
     scaled_cells = scale_cells(raw_cells, scaling)
@@ -570,7 +570,9 @@ def cell_quantification(
     logger.info(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
-    _, swapped, _ = utils.get_orientation_transform(orient, template_params["orientation"])
+    _, swapped, _ = utils.get_orientation_transform(
+        orient, template_params["orientation"]
+    )
     orient_cells = np.array(scaled_cells)[:, swapped]
 
     logger.info("Converting oriented cells into ANTs physical space")
@@ -579,16 +581,12 @@ def cell_quantification(
 
     logger.info("Registering Cells to SmartSPIM template")
     template_cells = apply_transforms_to_points(
-        ants_cells, 
-        template_transforms,
-        invert = (False, True)
+        ants_cells, template_transforms, invert=(False, True)
     )
 
     logger.info("Convert template cells into CCF space and orientation")
     ccf_pts = apply_transforms_to_points(
-        template_cells,
-        ccf_transforms,
-        invert = (False, True)
+        template_cells, ccf_transforms, invert=(False, True)
     )
 
     logger.info("Conver cells back into index space")
@@ -622,10 +620,9 @@ def cell_quantification(
     # count cells
     count_df = count.create_counts(transformed_cropped)
     metadata_df = pd.read_csv(
-        os.path.join(params_dir, 'params/region_metadata.csv'),
-        index_col=0
+        os.path.join(params_dir, "params/region_metadata.csv"), index_col=0
     )
-    out_df = pd.merge(metadata_df, count_df, on = 'Acronym')
+    out_df = pd.merge(metadata_df, count_df, on="Acronym")
 
     fname = "cell_count_by_region.csv"
     csv_path = os.path.join(save_path, fname)
@@ -633,47 +630,48 @@ def cell_quantification(
 
     return csv_path, transformed_cells_path
 
+
 def quantification_metrics(
-        region_list: list,
-        reference_microns_ccf: int,
-        reverse_transforms: list,
-        image_files: dict,
-        orientation: list,
-        reverse_scaling: list,
-        image_path: PathLike,
-        registered_path: PathLike
+    region_list: list,
+    reference_microns_ccf: int,
+    reverse_transforms: list,
+    image_files: dict,
+    orientation: list,
+    reverse_scaling: list,
+    image_path: PathLike,
+    registered_path: PathLike,
 ) -> pd.DataFrame:
     """
-    Reverse transform ccf regions and get volume and intensity metrics 
-    
+    Reverse transform ccf regions and get volume and intensity metrics
+
 
     Parameters
     ----------
     region_list : list
         list of ccf ids for regions that you want to get quantification
         metrics
-        
+
     reference_microns_ccf: int
         Integer that indicates to which um space the
         downsample image was taken to. Default 25 um.
-        
+
     reverse_transforms: dict
         Pathways for reverse transfrom data assets for ccf_to_template and
         template_to_ls ordered [Warp, Affine]
-        
+
     image_files: dict
         Pathways to the nifti files for the smartspim template and ccf
-    
+
     reverse_scaling: list
         List of scaling from 25um to downsampled 3
-    
+
     orientation: list
         Info on the orientation that the brain was
         aquired during imaging
-    
+
     image_path: str
         The location of the stitched zarr
-        
+
     registered_path: str
         Location to the registered zarr
 
@@ -686,84 +684,75 @@ def quantification_metrics(
     ccf_dir = os.path.dirname(os.path.realpath(__file__))
     count = utils.CellCounts(ccf_dir, reference_microns_ccf)
     region_info = count.get_metric_region_info(region_list)
-    
+
     img = utils.__read_zarr_image(image_path)
     img = np.array(img).squeeze()
-    
+
     registered_img = utils.__read_zarr_image(registered_path)
     registered_img = np.array(registered_img).squeeze()
     registered_img = np.moveaxis(registered_img, [0, 1, 2], [2, 1, 0])
-    
+
     ccf_img = ants.image_read(image_files["ccf_template"]).numpy()
-    
+
     metrics = []
     for region in region_list:
         verts, faces = count.get_CCF_mesh_points(region)
-        
-        if region_info[region][1] == 'hemi':
+
+        if region_info[region][1] == "hemi":
             vertices_right = copy.copy(verts)
             vertices_right[:, 0] = (
                 vertices_right[:, 0] + (5700 - vertices_right[:, 0]) * 2
             )
-        
+
             verts = np.vstack((verts, vertices_right))
-    
-        #Get the mesh oriented in the same direction as the ccf
+
+        # Get the mesh oriented in the same direction as the ccf
         scaled_verts = verts / reference_microns_ccf
         oriented_verts = scaled_verts[:, [0, 2, 1]]
-        
-        mask = np.zeros(shape = ccf_img.shape, dtype = np.int8)
+
+        mask = np.zeros(shape=ccf_img.shape, dtype=np.int8)
         mask = utils.get_intensity_mask(
-            scaled_verts[:, [2, 1, 0]],
-            faces,
-            mask, 
-            split = region_info[region][1]
+            scaled_verts[:, [2, 1, 0]], faces, mask, split=region_info[region][1]
         )
-        
+
         norm_mutual_info = utils.normalized_mutual_information(
-            ccf_img, 
-            registered_img,
-            mask
+            ccf_img, registered_img, mask
         )
-        
-        #Transform to template
+
+        # Transform to template
         ccf_params = utils.get_template_info(image_files["ccf_template"])
         ants_verts = convert_to_ants_space(ccf_params, oriented_verts)
         template_verts = apply_transforms_to_points(
-            ants_verts,
-            reverse_transforms['ccf_transforms'],
-            invert = (False, False)
+            ants_verts, reverse_transforms["ccf_transforms"], invert=(False, False)
         )
-        
-        #Transform to lightsheet
+
+        # Transform to lightsheet
         template_params = utils.get_template_info(image_files["smartspim_template"])
         ls_verts = apply_transforms_to_points(
             template_verts,
-            reverse_transforms['template_transforms'],
-            invert = (False, False)
+            reverse_transforms["template_transforms"],
+            invert=(False, False),
         )
         converted_verts = convert_from_ants_space(template_params, ls_verts)
-        
+
         # convert to orientation of the zarr image
         orient = utils.get_orientation(orientation)
-        _, swapped, mat = utils.get_orientation_transform(template_params['orientation'], orient)
-        converted_verts  = converted_verts [:, swapped]
+        _, swapped, mat = utils.get_orientation_transform(
+            template_params["orientation"], orient
+        )
+        converted_verts = converted_verts[:, swapped]
 
         # this is also because of the bug in registration
-        if orient == 'rpi':
+        if orient == "rpi":
             reverse_scaling = reverse_scaling[::-1]
             img = utils.orient_image(img, mat)
 
-        out_verts = scale_cells(converted_verts , reverse_scaling)
-        
-        # get metrics
-        volume = utils.get_volume(
-            out_verts,
-            faces, 
-            region_info[region][1]
-        )
+        out_verts = scale_cells(converted_verts, reverse_scaling)
 
-        mask = np.zeros(shape = img.shape, dtype = np.int8)
+        # get metrics
+        volume = utils.get_volume(out_verts, faces, region_info[region][1])
+
+        mask = np.zeros(shape=img.shape, dtype=np.int8)
         mask = utils.get_intensity_mask(out_verts, faces, mask, region_info[region][1])
         intensity = utils.get_region_intensity(np.array(img), mask)
 
@@ -773,25 +762,26 @@ def quantification_metrics(
                 region,
                 volume,
                 np.sum(intensity),
-                norm_mutual_info
+                norm_mutual_info,
             ]
         )
 
         # currently not saving plots but can
-        #planes = utils.get_plot_planes(mask, region_info[region][1]):
-        #utils.plot_overlays(img_oriented, mask, planes)
-    
+        # planes = utils.get_plot_planes(mask, region_info[region][1]):
+        # utils.plot_overlays(img_oriented, mask, planes)
+
     cols = [
-        'Acronym',
-        'Region_ID',
-        'Volume',
-        'Total_Intensity',
-        "Normalized_Mutual_Info"
+        "Acronym",
+        "Region_ID",
+        "Volume",
+        "Total_Intensity",
+        "Normalized_Mutual_Info",
     ]
-    
+
     metric_df = pd.DataFrame(metrics, columns=cols)
-    
+
     return metric_df
+
 
 def main(
     data_folder: PathLike,
@@ -873,28 +863,28 @@ def main(
     image_path = os.path.abspath(
         f"{smartspim_config['fused_folder']}/{smartspim_config['registration_channel']}.zarr/3/"
     )
-    
+
     registered_zarr = os.path.abspath(
-        f'{smartspim_config["input_params"]["ccf_transforms_path"]}/OMEZarr/image.zarr/0/'   
+        f'{smartspim_config["input_params"]["ccf_transforms_path"]}/OMEZarr/image.zarr/0/'
     )
-    
+
     metric_params = {
-        'region_list': smartspim_config['region_list'],
-        'reference_microns_ccf': smartspim_config['input_params']['reference_microns_ccf'],
-        'reverse_transforms': smartspim_config['reverse_transforms'],
-        'image_files': smartspim_config["input_params"]['image_files'],
-        'orientation': smartspim_config['input_params']['orientation'],
-        'reverse_scaling': smartspim_config['reverse_scaling'],
-        'image_path': image_path,
-        'registered_path': registered_zarr
+        "region_list": smartspim_config["region_list"],
+        "reference_microns_ccf": smartspim_config["input_params"][
+            "reference_microns_ccf"
+        ],
+        "reverse_transforms": smartspim_config["reverse_transforms"],
+        "image_files": smartspim_config["input_params"]["image_files"],
+        "orientation": smartspim_config["input_params"]["orientation"],
+        "reverse_scaling": smartspim_config["reverse_scaling"],
+        "image_path": image_path,
+        "registered_path": registered_zarr,
     }
-    
+
     metrics = quantification_metrics(**metric_params)
-    
-    metric_path = os.path.abspath(
-        f'{smartspim_config["save_path"]}/region_metrics.csv'
-    )
-    
+
+    metric_path = os.path.abspath(f'{smartspim_config["save_path"]}/region_metrics.csv')
+
     metrics.to_csv(metric_path)
 
     # Create visualization folders

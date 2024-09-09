@@ -17,19 +17,19 @@ import platform
 import time
 from datetime import datetime
 from typing import List
-from skimage import measure
-from sklearn.metrics import normalized_mutual_info_score
 
 import ants
+import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import dask.array as da
 import psutil
 import ray
 import vedo
 from aind_data_schema.core.processing import (DataProcess, PipelineProcess,
                                               Processing)
+from skimage import measure
+from sklearn.metrics import normalized_mutual_info_score
 
 from .._shared.types import PathLike
 
@@ -95,7 +95,6 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             count_density = (L_density + R_density) / 2
 
         else:
-
             if count > 0:
                 L_count = len(locations[np.where(locations[:, 0] < 5700)])
                 R_count = len(locations[np.where(locations[:, 0] >= 5700)])
@@ -212,7 +211,7 @@ class CellCounts:
         Parameters
         ----------
         regions : list
-            region IDs 
+            region IDs
 
         Returns
         -------
@@ -221,13 +220,13 @@ class CellCounts:
 
         """
         self.get_region_lists()
-        
+
         info = {}
         for struct_id, location in self.structs:
             if str(struct_id) in regions:
                 acronym = self.annot_map[str(struct_id)]
                 info[str(struct_id)] = [acronym, location]
-                
+
         return info
 
     def crop_cells(self, cells, factor=0.99):
@@ -379,6 +378,7 @@ def get_orientation_transform(orientation_in: str, orientation_out: str) -> tupl
 
     return original, swapped, transform_matrix
 
+
 def orient_image(img: np.array, orient_mat: np.array) -> np.array:
     """
     Orients array based on orientation matrix
@@ -395,16 +395,17 @@ def orient_image(img: np.array, orient_mat: np.array) -> np.array:
     img_out
         reoriented image
     """
-    
+
     original, swapped = np.where(orient_mat)
     img_out = np.moveaxis(img, original, swapped)
-    
+
     for c, row in enumerate(orient_mat.T):
         val = np.where(row)[0][0]
         if row[val] == -1:
             img_out = np.flip(img_out, c)
-    
+
     return img_out
+
 
 def get_template_info(file_path: PathLike) -> dict:
     """
@@ -435,21 +436,22 @@ def get_template_info(file_path: PathLike) -> dict:
 
     return params
 
+
 def get_volume(vertices, faces, split):
-    
-    if split == 'hemi':
+    if split == "hemi":
         break_pt = len(vertices) // 2
         vert_L, vert_R = vertices[:break_pt], vertices[break_pt:]
-        
+
         region_L = vedo.Mesh([vert_L, faces])
         region_R = vedo.Mesh([vert_R, faces])
-        
+
         volume = region_L.volume() + region_R.volume()
     else:
         region = vedo.Mesh([vertices, faces])
         volume = region.volume()
-        
+
     return volume
+
 
 def get_mesh_interior_points(mesh):
     """
@@ -469,19 +471,20 @@ def get_mesh_interior_points(mesh):
     """
 
     bounds = mesh.bounds()
-    region_array = mesh.binarize(spacing = (1,1,1)).tonumpy()
-    
+    region_array = mesh.binarize(spacing=(1, 1, 1)).tonumpy()
+
     indecies = np.where(region_array == 255)
     xs = indecies[0] + int(bounds[0])
     ys = indecies[1] + int(bounds[2])
     zs = indecies[2] + int(bounds[4])
-    
+
     return (xs, ys, zs)
+
 
 def get_intensity_mask(vertices, faces, mask, split):
     """
-    Create binary mask of a given CCF region using the verticies and 
-    faces from JSON file 
+    Create binary mask of a given CCF region using the verticies and
+    faces from JSON file
 
     Parameters:
     -----------
@@ -498,23 +501,24 @@ def get_intensity_mask(vertices, faces, mask, split):
     mask: np.array
         a 3D array in CCF space that masks the region being processed
     """
-    if split == 'hemi':
+    if split == "hemi":
         break_pt = len(vertices) // 2
         vert_L, vert_R = vertices[:break_pt], vertices[break_pt:]
-        
+
         region_L = vedo.Mesh([vert_L, faces])
         indicies = get_mesh_interior_points(region_L)
         mask[indicies] = 1
-        
+
         region_R = vedo.Mesh([vert_R, faces])
         indicies = get_mesh_interior_points(region_R)
-        mask[indicies] = 1 
+        mask[indicies] = 1
     else:
         region = vedo.Mesh([vertices, faces])
         indicies = get_mesh_interior_points(region)
         mask[indicies] = 1
-        
+
     return mask
+
 
 def normalized_mutual_information(
     ccf_img: np.array, img: np.array, mask: np.array
@@ -536,7 +540,7 @@ def normalized_mutual_information(
     img: np.array
         2D/3D patch of extracted from the image 2
         and based on a windowed point.
-        
+
     mask: np.array
         2D/
 
@@ -545,30 +549,27 @@ def normalized_mutual_information(
     float
         Float with the value of the mutual information error.
     """
-    
+
     ccf_img = ccf_img.astype(int)
-    
+
     # mutual information is invariant to scaling so this should not matter
     if img.dtype == np.dtype(np.float32):
         img = (img - img.min()) / (img.max() - img.min()) * ccf_img.max()
         img = img.astype(int)
-    
+
     patch_1 = np.where(mask > 0, ccf_img, 0)
     patch_2 = np.where(mask > 0, img, 0)
-    
+
     # flatten arrays
     patch_1 = patch_1.flatten()
     patch_2 = patch_2.flatten()
 
     # Compute the Normalized Mutual Information between the pixel distributions
-    nmi = normalized_mutual_info_score(
-        patch_1,
-        patch_2,
-        average_method='geometric'
-    )
-    
+    nmi = normalized_mutual_info_score(patch_1, patch_2, average_method="geometric")
+
     return nmi
- 
+
+
 def get_region_intensity(img, mask):
     """
     Convert region mask back to original values
@@ -576,37 +577,38 @@ def get_region_intensity(img, mask):
     masked_img = np.where(mask > 0, img, 0)
     return masked_img
 
+
 def get_plot_planes(mask, split):
-    
     if split == "hemi":
-        mask = mask[:, :, :mask.shape[3]//2]
-    
+        mask = mask[:, :, : mask.shape[3] // 2]
+
     props = measure.regionprops(mask)
     planes = props[0].centroid
-    
+
     return [int(p) for p in planes]
 
-def plot_overlays(img: np.array, mask: np.array, planes: list):
 
+def plot_overlays(img: np.array, mask: np.array, planes: list):
     mask = np.where(mask == 0, np.nan, mask)
     vmax = mask.max()
-    
-    fig, ax = plt.subplots(nrows = 1, ncols = 3)
-    
+
+    fig, ax = plt.subplots(nrows=1, ncols=3)
+
     i = img[planes[0], :, :]
     m = mask[planes[0], :, :]
     ax[0].imshow(i)
-    ax[0].imshow(m, cmap = 'jet_r', vmax = vmax, alpha = 0.6)
-    
+    ax[0].imshow(m, cmap="jet_r", vmax=vmax, alpha=0.6)
+
     i = img[:, planes[1], :]
     m = mask[:, planes[1], :]
     ax[1].imshow(i)
-    ax[1].imshow(m, cmap = 'jet_r', vmax = vmax, alpha = 0.6)
-    
+    ax[1].imshow(m, cmap="jet_r", vmax=vmax, alpha=0.6)
+
     i = img[:, :, planes[2]]
     m = mask[:, :, planes[2]]
     ax[2].imshow(i)
-    ax[2].imshow(m, cmap = 'jet_r', vmax = vmax, alpha = 0.6)
+    ax[2].imshow(m, cmap="jet_r", vmax=vmax, alpha=0.6)
+
 
 def __read_zarr_image(image_path: PathLike):
     """
@@ -627,6 +629,8 @@ def __read_zarr_image(image_path: PathLike):
     signal_array = da.from_zarr(image_path)
 
     return signal_array
+
+
 def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
     """
     Saves a text in a file in the given mode.
