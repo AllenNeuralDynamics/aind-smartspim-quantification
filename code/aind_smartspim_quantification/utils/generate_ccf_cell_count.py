@@ -12,8 +12,6 @@ import pandas as pd
 from ng_link import NgState
 from ng_link.ng_state import get_points_from_xml
 
-from .utils import CellCounts
-
 # IO types
 PathLike = Union[str, Path]
 
@@ -77,7 +75,7 @@ def generate_cff_cell_counting(
         os.mkdir(output_path)
 
     df_count = pd.read_csv(input_path, index_col=0)
-    include = list(df_count["Structure"].values)
+    include = list(df_count["Acronym"].values)
 
     # get CCF id-struct pairings
     if ccf_reference_path is None:
@@ -94,7 +92,7 @@ def generate_cff_cell_counting(
         if irow["struct"] in include:
             keep_ids.append(str(irow["id"]))
             total = df_count.loc[
-                df_count["Structure"] == irow["struct"], ["Total"]
+                df_count["Acronym"] == irow["struct"], ["Total"]
             ].values.squeeze()
             keep_struct.append(irow["struct"] + " cells: " + str(total))
 
@@ -134,8 +132,6 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
     cells = get_points_from_xml(params["cells_precomputed"]["xml_path"])
     cells = list(cells)
 
-    ccf_dir = Path(os.path.dirname(os.path.realpath(__file__))).parent
-
     generate_cff_cell_counting(
         params["ccf_cells_precomputed"]["input_path"],
         params["ccf_cells_precomputed"]["output_path"],
@@ -168,17 +164,7 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
             },
             {
                 "type": "segmentation",
-                "source": {
-                    "url": f"precomputed://{params['ccf_cells_precomputed']['output_path']}",
-                    "transform": {
-                        "matrix": [[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]],
-                        "outputDimensions": {
-                            "x": {"voxel_size": micron_res, "unit": "microns"},
-                            "y": {"voxel_size": micron_res, "unit": "microns"},
-                            "z": {"voxel_size": micron_res, "unit": "microns"}
-                        }
-                    }
-                },
+                "source": f"precomputed://{params['ccf_cells_precomputed']['output_path']}",
                 "tab": "source",
                 "name": "cell_counting_in_CCF",
             },

@@ -17,18 +17,19 @@ import platform
 import time
 from datetime import datetime
 from typing import List
-from sklearn.metrics import normalized_mutual_info_score
 
 import ants
+import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import dask.array as da
 import psutil
 import ray
 import vedo
 from aind_data_schema.core.processing import (DataProcess, PipelineProcess,
                                               Processing)
+from skimage import measure
+from sklearn.metrics import normalized_mutual_info_score
 
 from .._shared.types import PathLike
 
@@ -94,7 +95,6 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             count_density = (L_density + R_density) / 2
 
         else:
-
             if count > 0:
                 L_count = len(locations[np.where(locations[:, 0] < 5700)])
                 R_count = len(locations[np.where(locations[:, 0] >= 5700)])
@@ -211,7 +211,7 @@ class CellCounts:
         Parameters
         ----------
         regions : list
-            region IDs 
+            region IDs
 
         Returns
         -------
@@ -220,16 +220,16 @@ class CellCounts:
 
         """
         self.get_region_lists()
-        
+
         info = {}
         for struct_id, location in self.structs:
             if str(struct_id) in regions:
                 acronym = self.annot_map[str(struct_id)]
                 info[str(struct_id)] = [acronym, location]
-                
+
         return info
 
-    def crop_cells(self, cells, micron_res=True, factor=0.99):
+    def crop_cells(self, cells, factor=0.99):
         """
         Removes cells outside and on the boundary of the CCF
 
@@ -237,8 +237,6 @@ class CellCounts:
         ------------------------
         cells: list
             list of cell locations after applying registration transformations
-        micron_res: boolean
-            whether the cells have been scaled to mircon resolution or not. will be converted back before returning
 
         factor: float
             factor by which you shrink the boundary of the CCF for removing edge cells
@@ -263,7 +261,7 @@ class CellCounts:
 
         return cells_out
 
-    def create_counts(self, cells, cropped=False):
+    def create_counts(self, cells):
         """
         Import list of acronyms of brain regions
 
@@ -279,9 +277,6 @@ class CellCounts:
 
         # convert cells to np.array() and convert to microns for counting
         cells = np.array(cells) * self.resolution
-        
-        if cropped:
-            cells = self.crop_cells(cells)
 
         # get list of all regions and region IDs from .json file
         self.get_region_lists()
@@ -299,7 +294,7 @@ class CellCounts:
 
         cols = [
             "Id",
-            "Structure",
+            "Acronym",
             "Struct_Info",
             "Struct_area_um3",
             "Left",
@@ -376,12 +371,40 @@ def get_orientation_transform(orientation_in: str, orientation_out: str) -> tupl
             k_reverse = reverse_dict[k]
             transform_matrix[v, output_dict[k_reverse]] = -1
 
-    if orientation_in.lower() == "spl":
+    if orientation_in.lower() == "spl" or orientation_out.lower() == "spl":
         transform_matrix = abs(transform_matrix)
 
     original, swapped = np.where(transform_matrix.T)
 
-    return original, swapped
+    return original, swapped, transform_matrix
+
+
+def orient_image(img: np.array, orient_mat: np.array) -> np.array:
+    """
+    Orients array based on orientation matrix
+
+    Parameters
+    ----------
+    img : np.array
+        The image that is being oriented
+    orient_mat : np.array
+        identity matrix outlining the tranforms
+
+    Returns
+    -------
+    img_out
+        reoriented image
+    """
+
+    original, swapped = np.where(orient_mat)
+    img_out = np.moveaxis(img, original, swapped)
+
+    for c, row in enumerate(orient_mat.T):
+        val = np.where(row)[0][0]
+        if row[val] == -1:
+            img_out = np.flip(img_out, c)
+
+    return img_out
 
 
 def get_template_info(file_path: PathLike) -> dict:
@@ -413,23 +436,24 @@ def get_template_info(file_path: PathLike) -> dict:
 
     return params
 
+
 def get_volume(vertices, faces, split):
-    
-    if split == 'hemi':
+    if split == "hemi":
         break_pt = len(vertices) // 2
         vert_L, vert_R = vertices[:break_pt], vertices[break_pt:]
-        
+
         region_L = vedo.Mesh([vert_L, faces])
         region_R = vedo.Mesh([vert_R, faces])
-        
+
         volume = region_L.volume() + region_R.volume()
     else:
         region = vedo.Mesh([vertices, faces])
         volume = region.volume()
-        
+
     return volume
 
-def get_mesh_interrior_points(mesh) -> tuple:
+
+def get_mesh_interior_points(mesh):
     """
     Collects all points that within a given vedo.Mesh
 
@@ -447,19 +471,20 @@ def get_mesh_interrior_points(mesh) -> tuple:
     """
 
     bounds = mesh.bounds()
-    region_array = mesh.binarize(spacing = (1,1,1)).tonumpy()
-    
+    region_array = mesh.binarize(spacing=(1, 1, 1)).tonumpy()
+
     indecies = np.where(region_array == 255)
     xs = indecies[0] + int(bounds[0])
     ys = indecies[1] + int(bounds[2])
     zs = indecies[2] + int(bounds[4])
-    
+
     return (xs, ys, zs)
 
-def get_intensity_mask(vertices, faces, mask, split) -> np.array:
+
+def get_intensity_mask(vertices, faces, mask, split):
     """
-    Create binary mask of a given CCF region using the verticies and 
-    faces from JSON file 
+    Create binary mask of a given CCF region using the verticies and
+    faces from JSON file
 
     Parameters:
     -----------
@@ -476,24 +501,24 @@ def get_intensity_mask(vertices, faces, mask, split) -> np.array:
     mask: np.array
         a 3D array in CCF space that masks the region being processed
     """
-    if split == 'hemi':
+    if split == "hemi":
         break_pt = len(vertices) // 2
         vert_L, vert_R = vertices[:break_pt], vertices[break_pt:]
-        
+
         region_L = vedo.Mesh([vert_L, faces])
-        indicies = get_mesh_interrior_points(region_L)
-        mask[indicies]  = 255
-        
+        indicies = get_mesh_interior_points(region_L)
+        mask[indicies] = 1
+
         region_R = vedo.Mesh([vert_R, faces])
-        indicies = get_mesh_interrior_points(region_R)
-        mask[indicies]  = 255
-        
+        indicies = get_mesh_interior_points(region_R)
+        mask[indicies] = 1
     else:
         region = vedo.Mesh([vertices, faces])
-        indicies = get_mesh_interrior_points(region)
-        mask[indicies]  = 255
-        
+        indicies = get_mesh_interior_points(region)
+        mask[indicies] = 1
+
     return mask
+
 
 def normalized_mutual_information(
     ccf_img: np.array, img: np.array, mask: np.array
@@ -515,7 +540,7 @@ def normalized_mutual_information(
     img: np.array
         2D/3D patch of extracted from the image 2
         and based on a windowed point.
-        
+
     mask: np.array
         2D/
 
@@ -524,35 +549,66 @@ def normalized_mutual_information(
     float
         Float with the value of the mutual information error.
     """
-    
+
     ccf_img = ccf_img.astype(int)
-    
+
     # mutual information is invariant to scaling so this should not matter
-    if img.dtype == float:
-        img = int((img - img.min()) - (img.max() - img.min()) * ccf_img.max())
-    
+    if img.dtype == np.dtype(np.float32):
+        img = (img - img.min()) / (img.max() - img.min()) * ccf_img.max()
+        img = img.astype(int)
+
     patch_1 = np.where(mask > 0, ccf_img, 0)
     patch_2 = np.where(mask > 0, img, 0)
-    
+
     # flatten arrays
     patch_1 = patch_1.flatten()
     patch_2 = patch_2.flatten()
 
     # Compute the Normalized Mutual Information between the pixel distributions
-    nmi = normalized_mutual_info_score(
-        patch_1,
-        patch_2,
-        average_method='geometric'
-    )
-    
+    nmi = normalized_mutual_info_score(patch_1, patch_2, average_method="geometric")
+
     return nmi
- 
-def get_region_intensity(img, mask) -> np.array:
+
+
+def get_region_intensity(img, mask):
     """
-    
+    Convert region mask back to original values
     """
     masked_img = np.where(mask > 0, img, 0)
     return masked_img
+
+
+def get_plot_planes(mask, split):
+    if split == "hemi":
+        mask = mask[:, :, : mask.shape[3] // 2]
+
+    props = measure.regionprops(mask)
+    planes = props[0].centroid
+
+    return [int(p) for p in planes]
+
+
+def plot_overlays(img: np.array, mask: np.array, planes: list):
+    mask = np.where(mask == 0, np.nan, mask)
+    vmax = mask.max()
+
+    fig, ax = plt.subplots(nrows=1, ncols=3)
+
+    i = img[planes[0], :, :]
+    m = mask[planes[0], :, :]
+    ax[0].imshow(i)
+    ax[0].imshow(m, cmap="jet_r", vmax=vmax, alpha=0.6)
+
+    i = img[:, planes[1], :]
+    m = mask[:, planes[1], :]
+    ax[1].imshow(i)
+    ax[1].imshow(m, cmap="jet_r", vmax=vmax, alpha=0.6)
+
+    i = img[:, :, planes[2]]
+    m = mask[:, :, planes[2]]
+    ax[2].imshow(i)
+    ax[2].imshow(m, cmap="jet_r", vmax=vmax, alpha=0.6)
+
 
 def __read_zarr_image(image_path: PathLike):
     """
@@ -573,6 +629,8 @@ def __read_zarr_image(image_path: PathLike):
     signal_array = da.from_zarr(image_path)
 
     return signal_array
+
+
 def save_string_to_txt(txt: str, filepath: str, mode="w") -> None:
     """
     Saves a text in a file in the given mode.
