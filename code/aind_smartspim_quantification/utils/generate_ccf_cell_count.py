@@ -164,25 +164,7 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
             },
             {
                 "type": "segmentation",
-                "source": {
-                    "url": f"precomputed://{params['ccf_cells_precomputed']['output_path']}",
-                    "transform": {
-                        "matrix": [
-                            [1, 0, 0, 0, 0, 0],
-                            [0, 1, 0, 0, 0, 0],
-                            [0, 0, 0, 0, 1, 0],
-                            [0, 0, 0, 1, 0, 0],
-                            [0, 0, 1, 0, 0, 0],
-                        ],
-                        "outputDimensions": {
-                            "t": [0.001, "s"],
-                            "c'": [1, ""],
-                            "z": [micron_res / 10**6, "m"],
-                            "y": [micron_res / 10**6, "m"],
-                            "x": [micron_res / 10**6, "m"],
-                        },
-                    },
-                },
+                "source": f"precomputed://{params['ccf_cells_precomputed']['output_path']}",
                 "tab": "source",
                 "name": "cell_counting_in_CCF",
             },
