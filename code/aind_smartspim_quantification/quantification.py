@@ -891,17 +891,20 @@ def main(
     ccf_cells_precomputed, cells_precomputed = create_visualization_folders(
         smartspim_config["save_path"]
     )
-
-    # Generate neuroglancer links
-    generate_neuroglancer_link(
-        data_folder=data_folder,
-        csv_path=csv_path,
-        transformed_cells_path=transformed_cells_path,
-        ccf_cells_precomputed_output=ccf_cells_precomputed,
-        cells_precomputed_output=cells_precomputed,
-        smartspim_config=smartspim_config,
-        logger=logger,
-    )
+    
+    try:
+        # Generate neuroglancer links
+        generate_neuroglancer_link(
+            data_folder=data_folder,
+            csv_path=csv_path,
+            transformed_cells_path=transformed_cells_path,
+            ccf_cells_precomputed_output=ccf_cells_precomputed,
+            cells_precomputed_output=cells_precomputed,
+            smartspim_config=smartspim_config,
+            logger=logger,
+        )
+    except Exception as e:
+        print(f"There was a problem generating the neuroglancer link: {e}")
 
     end_time = time.time()
 
@@ -925,7 +928,7 @@ def main(
         data_processes=data_processes,
         dest_processing=metadata_folder,
         processor_full_name="Nicholas Lusk",
-        pipeline_version="1.5.0",
+        pipeline_version="3.0.0",
     )
 
     # Getting tracked resources and plotting image
