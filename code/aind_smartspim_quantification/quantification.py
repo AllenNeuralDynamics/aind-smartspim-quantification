@@ -24,7 +24,7 @@ import pandas as pd
 import xmltodict
 from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
-from imlib.IO.cells import get_cells, save_cells
+from imlib.IO.cells import save_cells
 from tqdm import tqdm
 
 from ._shared.types import PathLike
@@ -32,65 +32,83 @@ from .utils import utils
 from .utils.generate_ccf_cell_count import generate_25_um_ccf_cells
 
 
-def read_xml(
-    seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str
-) -> list:
+def read_cells_from_csv(
+    cell_likelihoods_path: Union[str, "PathLike"],
+    reg_dims: List[int],
+    ds: int,
+    orient: str,
+    institute: str,
+) -> List[tuple]:
     """
-    Imports cell locations from segmentation output
+    Imports cell locations from a CSV file of cell likelihoods.
 
     Parameters
     -------------
-    seg_path: PathLike
-        Path where the .xml file is located
+    cell_likelihoods_path: str or PathLike
+        Path to the cell likelihoods CSV file.
     reg_dims: list
-        Resolution (pixels) of the image used for segmentation. ordered
-        relative to zarr
+        Resolution (pixels) of the image used for segmentation, ordered relative to zarr.
     ds: int
-        factor by which image for registration was downsampled from input_dims
+        Factor by which the image for registration was downsampled from input_dims.
     orient: str
-        the orientation the brain was imaged
-    insititute: str
-        the institution that imaged the dataset
+        The orientation the brain was imaged.
+    institute: str
+        The institution that imaged the dataset.
 
     Returns
     -------------
     list
-        List with cell locations as tuples. orientation needs to be relative
-        to zarr for proper scaling
+        List with cell locations as tuples. Orientation needs to be relative
+        to zarr for proper scaling.
     """
+    if not Path(cell_likelihoods_path).exists():
+        raise FileNotFoundError(f"Path {cell_likelihoods_path} does not exist.")
 
-    cell_file = glob(os.path.join(seg_path, "classified_*.xml"))[0]
-    file_cells = get_cells(cell_file)
+    df = pd.read_csv(cell_likelihoods_path)
 
     cells = []
 
-    for cell in file_cells:
+    for _, row in df.iterrows():
+        x, y, z = row["x"], row["y"], row["z"]
+
         if orient == "spr":
             cells.append(
                 (
-                    cell.z / ds,
-                    reg_dims[1] - (cell.y / ds),
-                    reg_dims[2] - (cell.x / ds),
+                    z / ds,
+                    reg_dims[1] - (y / ds),
+                    reg_dims[2] - (x / ds),
                 )
             )
         elif orient == "spl" and institute == "AIBS":
             cells.append(
                 (
-                    cell.z / ds,
-                    reg_dims[1] - (cell.y / ds),
-                    cell.x / ds,
+                    z / ds,
+                    reg_dims[1] - (y / ds),
+                    x / ds,
                 )
             )
         elif orient == "spl" and institute == "AIND":
-            cells.append((cell.z / ds, cell.y / ds, cell.x / ds))
+            cells.append(
+                (
+                    z / ds,
+                    y / ds,
+                    x / ds,
+                )
+            )
         elif orient == "sal":
-            cells.append((cell.z / ds, cell.y / ds, reg_dims[2] - (cell.x / ds)))
+            cells.append(
+                (
+                    z / ds,
+                    y / ds,
+                    reg_dims[2] - (x / ds),
+                )
+            )
         elif orient == "rpi":
             cells.append(
                 (
-                    cell.z / ds,
-                    reg_dims[1] - (cell.y / ds),
-                    reg_dims[2] - (cell.x / ds),
+                    z / ds,
+                    reg_dims[1] - (y / ds),
+                    reg_dims[2] - (x / ds),
                 )
             )
 
@@ -433,9 +451,9 @@ def generate_neuroglancer_link(
     process_output_filename = f"image_cell_quantification/{smartspim_config['channel_name']}/visualization/neuroglancer_config.json"
     dataset_path = smartspim_config["stitched_s3_path"]
 
-    json_state[
-        "ng_link"
-    ] = f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
+    json_state["ng_link"] = (
+        f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
+    )
     logger.info(f"Neuroglancer link: {json_state['ng_link']}")
     # Updating s3 paths of layers
 
@@ -464,7 +482,7 @@ def generate_neuroglancer_link(
 
 def cell_quantification(
     input_res: list,
-    detected_cells_xml_path: PathLike,
+    detected_cells_csv_path: PathLike,
     ccf_transforms_path: PathLike,
     save_path: PathLike,
     downsample_res: int,
@@ -486,9 +504,9 @@ def cell_quantification(
     input_res: list
         Original image resolution in XZY order
 
-    detected_cells_xml_path: PathLike
+    detected_cells_csv_path: PathLike
         Path to the folder where the cell segmentation
-        output the XML(s)
+        outputs are located
 
     ccf_transforms_path: PathLike
         Path to the folder where the CCF capsule
@@ -550,14 +568,28 @@ def cell_quantification(
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
 
     # Getting cell locations and ccf transformations
+    detected_cells_csv_path = Path(detected_cells_csv_path)
+
     orient = utils.get_orientation(orientation)
     if "detect" in mode:
-        raw_cells = read_xml(
-            detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
+        raw_cells = read_cells_from_csv(
+            cell_likelihoods_path=detected_cells_csv_path.joinpath(
+                "cell_likelihoods.csv"
+            ),
+            reg_dims=reg_dims,
+            ds=ds,
+            orient=orient,
+            institute=institute_abbreviation,
         )
     elif "reprocess" in mode:
-        raw_cells = read_aws_xml(
-            detected_cells_xml_path, reg_dims, ds, orient, institute_abbreviation
+        raw_cells = read_cells_from_csv(
+            cell_likelihoods_path=detected_cells_csv_path.joinpath(
+                "cell_likelihoods.csv"
+            ),
+            reg_dims=reg_dims,
+            ds=ds,
+            orient=orient,
+            institute=institute_abbreviation,
         )
 
     # This is beacuse of a bug in registration
@@ -891,7 +923,7 @@ def main(
     ccf_cells_precomputed, cells_precomputed = create_visualization_folders(
         smartspim_config["save_path"]
     )
-    
+
     try:
         # Generate neuroglancer links
         generate_neuroglancer_link(

@@ -207,9 +207,9 @@ def run():
         )
         default_config["input_params"]["mode"] = "detect"
     elif "reprocess" in mode:
-        default_config[
-            "cell_segmentation_folder"
-        ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+        default_config["cell_segmentation_folder"] = (
+            f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+        )
         default_config["input_params"]["mode"] = "reprocess"
     else:
         raise NotImplementedError(f"The mode {mode} has not been implemented")
