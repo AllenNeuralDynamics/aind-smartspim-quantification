@@ -27,6 +27,7 @@ from imlib.cells.cells import Cell
 from imlib.IO.cells import save_cells
 from tqdm import tqdm
 
+from .__init__ import __maintainers__, __pipeline_version__, __version__
 from ._shared.types import PathLike
 from .utils import utils
 from .utils.generate_ccf_cell_count import generate_25_um_ccf_cells
@@ -943,14 +944,14 @@ def main(
     data_processes.append(
         DataProcess(
             name=ProcessName.IMAGE_CELL_QUANTIFICATION,
-            software_version="1.5.0",
+            software_version=__version__,
             start_date_time=start_time,
             end_date_time=end_time,
             input_location=f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0",
             output_location=str(output_quantified_folder),
             outputs={"output_folder": str(output_quantified_folder)},
             code_url="https://github.com/AllenNeuralDynamics/aind-smartspim-quantification",
-            code_version="1.5.0",
+            code_version=__version__,
             parameters=smartspim_config,
             notes="The output folder contains the precomputed format to visualize and count cells per CCF region",
         )
@@ -959,8 +960,8 @@ def main(
     utils.generate_processing(
         data_processes=data_processes,
         dest_processing=metadata_folder,
-        processor_full_name="Nicholas Lusk",
-        pipeline_version="3.0.0",
+        processor_full_name=__maintainers__[0],
+        pipeline_version=__pipeline_version__,
     )
 
     # Getting tracked resources and plotting image
