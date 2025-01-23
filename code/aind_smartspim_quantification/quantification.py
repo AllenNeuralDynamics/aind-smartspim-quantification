@@ -14,14 +14,12 @@ import multiprocessing
 import os
 import re
 import time
-from glob import glob
 from pathlib import Path
+from typing import Union, List
 
 import ants
-import boto3
 import numpy as np
 import pandas as pd
-import xmltodict
 from aind_data_schema.core.processing import DataProcess, ProcessName
 from imlib.cells.cells import Cell
 from imlib.IO.cells import save_cells
@@ -38,6 +36,7 @@ def read_cells_from_csv(
     reg_dims: List[int],
     ds: int,
     orient: str,
+    orient_matrix: np.ndarray,
     institute: str,
 ) -> List[tuple]:
     """
@@ -53,14 +52,15 @@ def read_cells_from_csv(
         Factor by which the image for registration was downsampled from input_dims.
     orient: str
         The orientation the brain was imaged.
+    orient_matrix: np.ndarray
+        The direction of the axis of input cells relative to registration
     institute: str
         The institution that imaged the dataset.
 
     Returns
     -------------
-    list
-        List with cell locations as tuples. Orientation needs to be relative
-        to zarr for proper scaling.
+    np.ndarray
+        Array with cell locations scaled and oriented
     """
     if not Path(cell_likelihoods_path).exists():
         raise FileNotFoundError(f"Path {cell_likelihoods_path} does not exist.")
@@ -70,134 +70,30 @@ def read_cells_from_csv(
     cells = []
 
     for _, row in df.iterrows():
+        
         x, y, z = row["x"], row["y"], row["z"]
-
-        if orient == "spr":
-            cells.append(
+    
+        # Corrects for a bug in acquisition as SPL is not an actual imaging orientation
+        if orient == "spl" and institute == "AIBS":
+            y = reg_dims[1] - (y / ds)
+        else:
+            y = y / ds
+    
+        cells.append(
                 (
                     z / ds,
-                    reg_dims[1] - (y / ds),
-                    reg_dims[2] - (x / ds),
-                )
-            )
-        elif orient == "spl" and institute == "AIBS":
-            cells.append(
-                (
-                    z / ds,
-                    reg_dims[1] - (y / ds),
+                    y,
                     x / ds,
                 )
             )
-        elif orient == "spl" and institute == "AIND":
-            cells.append(
-                (
-                    z / ds,
-                    y / ds,
-                    x / ds,
-                )
-            )
-        elif orient == "sal":
-            cells.append(
-                (
-                    z / ds,
-                    y / ds,
-                    reg_dims[2] - (x / ds),
-                )
-            )
-        elif orient == "rpi":
-            cells.append(
-                (
-                    z / ds,
-                    reg_dims[1] - (y / ds),
-                    reg_dims[2] - (x / ds),
-                )
-            )
+    
+    cells = np.array(cells)
+
+    for idx, dim_orient in enumerate(orient_matrix.sum(axis = 1)):
+        if dim_orient < 0:
+            cells[:, idx] = reg_dims[idx] - cells[:, idx]
 
     return cells
-
-
-def read_aws_xml(
-    seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str
-) -> list:
-    """
-    Imports cell locations from segmentation output
-
-    Parameters
-    -------------
-    seg_path: PathLike
-        Path where the .xml file is located
-    reg_dims: list
-        Resolution (pixels) of the image used for segmentation. Orientation [x (ML), z (DV), y (AP)]
-    ds: int
-        factor by which image for registration was downsampled from input_dims
-    orient: str
-        the orientation the brain was imaged
-    insititute: str
-        the institution that imaged the dataset
-
-    Returns
-    -------------
-    list
-        List with cell locations as tuples (x (ML), y (AP), z (DV))
-    """
-    print(f"seg_path being used is: {seg_path}")
-    client = boto3.client("s3")
-
-    res = client.get_object(
-        Bucket="aind-open-data", Key=seg_path + "/detected_cells.xml"
-    )
-    xml_file = res["Body"].read()
-    file_cells = xmltodict.parse(xml_file)["CellCounter_Marker_File"]["Marker_Data"][
-        "Marker_Type"
-    ]["Marker"]
-
-    cells = []
-
-    for cell in file_cells:
-        # spl is not a real orientation. but a bug from early acquisition script
-        if orient == "spr":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
-                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
-                )
-            )
-        elif orient == "spl" and institute == "AIBS":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
-                    int(cell["MarkerX"]) / ds,
-                )
-            )
-        elif orient == "spl" and institute == "AIND":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    int(cell["MarkerY"]) / ds,
-                    int(cell["MarkerX"]) / ds,
-                )
-            )
-        elif orient == "sal":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    int(cell["MarkerY"]) / ds,
-                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
-                )
-            )
-        elif orient == "rpi":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
-                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
-                )
-            )
-
-    return cells
-
 
 def scale_cells(cells, scale):
     """
@@ -569,45 +465,38 @@ def cell_quantification(
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
 
     # Getting cell locations and ccf transformations
+    # Getting cell locations and ccf transformations
+    orient = utils.get_orientation(orientation)
+    template_params = utils.get_template_info(image_files["smartspim_template"])
+
+    _, swapped, mat = utils.get_orientation_transform(
+        orient, 
+        template_params["orientation"]
+    )
+    
     detected_cells_csv_path = Path(detected_cells_csv_path)
 
-    orient = utils.get_orientation(orientation)
-    if "detect" in mode:
-        raw_cells = read_cells_from_csv(
-            cell_likelihoods_path=detected_cells_csv_path.joinpath(
-                "cell_likelihoods.csv"
-            ),
-            reg_dims=reg_dims,
-            ds=ds,
-            orient=orient,
-            institute=institute_abbreviation,
-        )
-    elif "reprocess" in mode:
-        raw_cells = read_cells_from_csv(
-            cell_likelihoods_path=detected_cells_csv_path.joinpath(
-                "cell_likelihoods.csv"
-            ),
-            reg_dims=reg_dims,
-            ds=ds,
-            orient=orient,
-            institute=institute_abbreviation,
-        )
 
-    # This is beacuse of a bug in registration
-    if orient == "rpi":
-        scaling = scaling[::-1]
+    raw_cells = read_cells_from_csv(
+        cell_likelihoods_path=detected_cells_csv_path.joinpath(
+            "cell_likelihoods.csv"
+        ),
+        reg_dims=reg_dims,
+        ds=ds,
+        orient=orient,
+        orient_matrix=mat,
+        institute=institute_abbreviation,
+    )
+    
 
     scaled_cells = scale_cells(raw_cells, scaling)
-    template_params = utils.get_template_info(image_files["smartspim_template"])
+    orient_cells = scaled_cells[:, swapped]
 
     logger.info(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
-    _, swapped, _ = utils.get_orientation_transform(
-        orient, template_params["orientation"]
-    )
-    orient_cells = np.array(scaled_cells)[:, swapped]
 
+    
     logger.info("Converting oriented cells into ANTs physical space")
     template_params = utils.get_template_info(image_files["smartspim_template"])
     ants_cells = convert_to_ants_space(template_params, orient_cells)

@@ -91,14 +91,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
         f"{pipeline_config['quantification']['fused_folder']}"
     )
 
-    # Added to handle registration testing
-    s3_path = pipeline_config["stitching"]["s3_path"]
-    if "test" in s3_path:
-        s3_seg_path = s3_path.replace("test", "stitched")
-    else:
-        s3_seg_path = s3_path
-
-    default_config["stitched_s3_path"] = s3_path
+    default_config["stitched_s3_path"] = pipeline_config["stitching"]["s3_path"]
     default_config["registration_channel"] = pipeline_config["stitching"]["channel"]
     default_config["channel_name"] = pipeline_config["quantification"]["channel"]
     default_config["save_path"] = os.path.abspath(
@@ -108,15 +101,13 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
         "input_scale"
     ]
 
-    if default_config["input_params"]["mode"] == "detect":
+    if default_config["input_params"]["mode"] == ["detect", "classify"]:
         default_config["input_params"][
             "detected_cells_xml_path"
         ] = f"{default_config['cell_segmentation_folder']}/"
-    elif default_config["input_params"]["mode"] == "reprocess":
+    elif default_config["input_params"]["mode"] == ["quantify", "register"]:
         default_config["input_params"]["detected_cells_xml_path"] = (
-            s3_seg_path.split("/")[-1]
-            + "/"
-            + default_config["cell_segmentation_folder"]
+            "../data/"
         )
 
     default_config["input_params"][
@@ -191,46 +182,60 @@ def run():
             "aind_smartspim_quantification/params/default_quantify_configs.yaml"
         )
     )
-
-    ccf_folder = glob(f"{data_folder}/ccf_*")
-
-    if len(ccf_folder):
-        ccf_folder = ccf_folder[0]
-
-    # add paths to default_config
-    default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
-
+    
     # add mode information
-    if "detect" in mode:
+    if "register" in mode:
+        default_config[
+            "cell_segmentation_folder"
+        ] = data_folder
+        default_config["input_params"]["mode"] = "register"
+        template_loc = f'ccf_Ex_*_Em_*'
+    elif "detect" in mode:
         default_config["cell_segmentation_folder"] = os.path.abspath(
             f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
         )
         default_config["input_params"]["mode"] = "detect"
-    elif "reprocess" in mode:
-        default_config["cell_segmentation_folder"] = (
-            f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+        template_loc = f'ccf_Ex_*_Em_*'
+    elif "classify" in mode:
+        default_config["cell_segmentation_folder"] = os.path.abspath(
+            f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
         )
-        default_config["input_params"]["mode"] = "reprocess"
+        default_config["input_params"]["mode"] = "classify"
+        template_loc = "Ex_*_Em_*"
+    elif "quantify" in mode:
+        default_config[
+            "cell_segmentation_folder"
+        ] = data_folder
+        default_config["input_params"]["mode"] = "quantify"
+        template_loc = "Ex_*_Em_*"
     else:
         raise NotImplementedError(f"The mode {mode} has not been implemented")
+    
+    ccf_folder = glob(f"{data_folder}/{template_loc}")[-1]
+
+    if not os.path.exists(ccf_folder):
+        raise ValueError(f"File does not exist: {ccf_folder}")
+
+    # add paths to default_config
+    default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
 
     # add paths to ls_to_template transforms
     default_config["input_params"]["template_transforms"] = [
         os.path.abspath(
-            glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
+            glob(f"{data_folder}/{template_loc}/ls_to_template_SyN_0GenericAffine.mat")[0]
         ),
         os.path.abspath(
-            glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+            glob(f"{data_folder}/{template_loc}/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
         ),
     ]
 
     # add paths to template_to_ccf transforms
     default_config["input_params"]["ccf_transforms"] = [
         os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
-        ),
-        os.path.abspath(
             f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
+        ),
+                os.path.abspath(
+            f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
         ),
     ]
 
@@ -238,10 +243,10 @@ def run():
     default_config["reverse_transforms"] = {
         "template_transforms": [
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
+                glob(f"{data_folder}/{template_loc}/ls_to_template_SyN_1Warp.nii.gz")[0]
             ),
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+                glob(f"{data_folder}/{template_loc}/ls_to_template_SyN_0GenericAffine.mat")[0]
             ),
         ],
         "ccf_transforms": [
