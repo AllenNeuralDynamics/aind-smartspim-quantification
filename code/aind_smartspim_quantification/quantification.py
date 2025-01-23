@@ -349,7 +349,7 @@ def generate_neuroglancer_link(
     dataset_path = smartspim_config["stitched_s3_path"]
 
     json_state["ng_link"] = (
-        f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
+        f"https://neuroglancer-demo.appspot.com/#!{dataset_path}/{process_output_filename}"
     )
     logger.info(f"Neuroglancer link: {json_state['ng_link']}")
     # Updating s3 paths of layers
@@ -360,7 +360,7 @@ def generate_neuroglancer_link(
         "(Ex_[0-9]*_Em_[0-9]*)", smartspim_config["input_params"]["ccf_transforms_path"]
     ).group()
 
-    ccf_registered_s3_path = f"zarr://{dataset_path}/image_atlas_alignment/{ccf_reg_channel_name}/OMEZarr/image.zarr"
+    ccf_registered_s3_path = f"{dataset_path}/image_atlas_alignment/{ccf_reg_channel_name}/OMEZarr/image.zarr"
     json_state["layers"][0]["source"] = ccf_registered_s3_path
 
     # Updating S3 cell points to future S3 path
