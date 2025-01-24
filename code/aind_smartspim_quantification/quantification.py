@@ -16,6 +16,7 @@ import re
 import time
 from glob import glob
 from pathlib import Path
+from typing import List, Union
 
 import ants
 import boto3
@@ -34,7 +35,7 @@ from .utils.generate_ccf_cell_count import generate_25_um_ccf_cells
 
 
 def read_cells_from_csv(
-    cell_likelihoods_path: Union[str, "PathLike"],
+    cell_likelihoods_path: Union[str, PathLike],
     reg_dims: List[int],
     ds: int,
     orient: str,
