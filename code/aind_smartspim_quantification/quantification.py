@@ -576,7 +576,7 @@ def cell_quantification(
     if "detect" in mode:
         raw_cells = read_cells_from_csv(
             cell_likelihoods_path=detected_cells_csv_path.joinpath(
-                "cell_likelihoods.csv"
+                "detected_cells.csv"
             ),
             reg_dims=reg_dims,
             ds=ds,
@@ -586,7 +586,7 @@ def cell_quantification(
     elif "reprocess" in mode:
         raw_cells = read_cells_from_csv(
             cell_likelihoods_path=detected_cells_csv_path.joinpath(
-                "cell_likelihoods.csv"
+                "detected_cells.csv"
             ),
             reg_dims=reg_dims,
             ds=ds,
