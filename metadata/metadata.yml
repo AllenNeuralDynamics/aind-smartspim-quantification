@@ -1,5 +1,5 @@
 metadata_version: 1
-name: Zarr pipeline aind-smartspim-cell-quantification
+name: aind-smartspim-cell-quantification-1.5.1
 description: A tool for quantifing cells using the Allen CCF Atlas
 tags:
 - SmartSPIM
