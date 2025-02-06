@@ -110,10 +110,10 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
 
     if default_config["input_params"]["mode"] == "detect":
         default_config["input_params"][
-            "detected_cells_xml_path"
+            "detected_cells_csv_path"
         ] = f"{default_config['cell_segmentation_folder']}/"
     elif default_config["input_params"]["mode"] == "reprocess":
-        default_config["input_params"]["detected_cells_xml_path"] = (
+        default_config["input_params"]["detected_cells_csv_path"] = (
             s3_seg_path.split("/")[-1]
             + "/"
             + default_config["cell_segmentation_folder"]
@@ -207,9 +207,9 @@ def run():
         )
         default_config["input_params"]["mode"] = "detect"
     elif "reprocess" in mode:
-        default_config[
-            "cell_segmentation_folder"
-        ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+        default_config["cell_segmentation_folder"] = (
+            f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+        )
         default_config["input_params"]["mode"] = "reprocess"
     else:
         raise NotImplementedError(f"The mode {mode} has not been implemented")
