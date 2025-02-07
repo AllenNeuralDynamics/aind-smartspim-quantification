@@ -16,9 +16,9 @@ import pickle
 import platform
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
-from pathlib import Path
 import ants
 import dask.array as da
 import matplotlib.pyplot as plt
@@ -905,13 +905,13 @@ def get_code_ocean_cpu_limit():
         return co_cpus
     if aws_batch_job_id:
         return 1
-    
+
     try:
         with open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us") as fp:
             cfs_quota_us = int(fp.read())
         with open("/sys/fs/cgroup/cpu/cpu.cfs_period_us") as fp:
             cfs_period_us = int(fp.read())
-        
+
         container_cpus = cfs_quota_us // cfs_period_us
 
     except FileNotFoundError as e:
@@ -919,6 +919,7 @@ def get_code_ocean_cpu_limit():
 
     # For physical machine, the `cfs_quota_us` could be '-1'
     return psutil.cpu_count(logical=False) if container_cpus < 1 else container_cpus
+
 
 def print_system_information(logger: logging.Logger):
     """
@@ -1015,6 +1016,7 @@ def print_system_information(logger: logging.Logger):
     logger.info(f"Total Bytes Sent: {get_size(net_io.bytes_sent)}")
     logger.info(f"Total Bytes Received: {get_size(net_io.bytes_recv)}")
 
+
 def create_logger(output_log_path: PathLike):
     """
     Creates a logger that generates
@@ -1052,6 +1054,7 @@ def create_logger(output_log_path: PathLike):
     logger.setLevel(logging.DEBUG)
 
     return logger
+
 
 def check_path_instance(obj: object) -> bool:
     """

@@ -182,7 +182,7 @@ def run():
         data_folder=data_folder
     )
 
-    quantification_info = pipeline_config.get('quantification')
+    quantification_info = pipeline_config.get("quantification")
 
     if quantification_info is not None:
 
@@ -245,7 +245,9 @@ def run():
                     glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
                 ),
                 os.path.abspath(
-                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[
+                        0
+                    ]
                 ),
             ],
             "ccf_transforms": [
@@ -301,6 +303,7 @@ def run():
             filename=f"{results_folder}/segmentation_processing_manifest_empty.json",
             dictionary=pipeline_config,
         )
+
 
 if __name__ == "__main__":
     run()
