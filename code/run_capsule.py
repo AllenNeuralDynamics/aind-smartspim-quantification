@@ -182,114 +182,127 @@ def run():
         data_folder=data_folder
     )
 
-    print("Pipeline config: ", pipeline_config)
-    print("Data folder contents: ", os.listdir(data_folder))
+    quantification_info = pipeline_config.get("quantification")
 
-    # get default configs
-    default_config = get_yaml_config(
-        os.path.abspath(
-            "aind_smartspim_quantification/params/default_quantify_configs.yaml"
-        )
-    )
+    if quantification_info is not None:
 
-    ccf_folder = glob(f"{data_folder}/ccf_*")
+        print("Pipeline config: ", pipeline_config)
+        print("Data folder contents: ", os.listdir(data_folder))
 
-    if len(ccf_folder):
-        ccf_folder = ccf_folder[0]
-
-    # add paths to default_config
-    default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
-
-    # add mode information
-    if "detect" in mode:
-        default_config["cell_segmentation_folder"] = os.path.abspath(
-            f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
-        )
-        default_config["input_params"]["mode"] = "detect"
-    elif "reprocess" in mode:
-        default_config["cell_segmentation_folder"] = (
-            f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
-        )
-        default_config["input_params"]["mode"] = "reprocess"
-    else:
-        raise NotImplementedError(f"The mode {mode} has not been implemented")
-
-    # add paths to ls_to_template transforms
-    default_config["input_params"]["template_transforms"] = [
-        os.path.abspath(
-            glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
-        ),
-        os.path.abspath(
-            glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
-        ),
-    ]
-
-    # add paths to template_to_ccf transforms
-    default_config["input_params"]["ccf_transforms"] = [
-        os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
-        ),
-        os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
-        ),
-    ]
-
-    # add paths for reverse transforms for calculating metrics
-    default_config["reverse_transforms"] = {
-        "template_transforms": [
+        # get default configs
+        default_config = get_yaml_config(
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
+                "aind_smartspim_quantification/params/default_quantify_configs.yaml"
+            )
+        )
+
+        ccf_folder = glob(f"{data_folder}/ccf_*")
+
+        if len(ccf_folder):
+            ccf_folder = ccf_folder[0]
+
+        # add paths to default_config
+        default_config["ccf_registration_folder"] = os.path.abspath(ccf_folder)
+
+        # add mode information
+        if "detect" in mode:
+            default_config["cell_segmentation_folder"] = os.path.abspath(
+                f"{data_folder}/cell_{pipeline_config['quantification']['channel']}"
+            )
+            default_config["input_params"]["mode"] = "detect"
+        elif "reprocess" in mode:
+            default_config["cell_segmentation_folder"] = (
+                f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+            )
+            default_config["input_params"]["mode"] = "reprocess"
+        else:
+            raise NotImplementedError(f"The mode {mode} has not been implemented")
+
+        # add paths to ls_to_template transforms
+        default_config["input_params"]["template_transforms"] = [
+            os.path.abspath(
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
             ),
             os.path.abspath(
                 glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
             ),
-        ],
-        "ccf_transforms": [
+        ]
+
+        # add paths to template_to_ccf transforms
+        default_config["input_params"]["ccf_transforms"] = [
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp.nii.gz"
+                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
             ),
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
             ),
-        ],
-    }
+        ]
 
-    # add paths to the nifti files of the template and ccf
-    default_config["input_params"]["image_files"] = {
-        "ccf_template": os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/ccf_average_template_25.nii.gz"
-        ),
-        "smartspim_template": os.path.abspath(
-            f"{data_folder}/lightsheet_template_ccf_registration/smartspim_lca_template_25.nii.gz"
-        ),
-    }
+        # add paths for reverse transforms for calculating metrics
+        default_config["reverse_transforms"] = {
+            "template_transforms": [
+                os.path.abspath(
+                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
+                ),
+                os.path.abspath(
+                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[
+                        0
+                    ]
+                ),
+            ],
+            "ccf_transforms": [
+                os.path.abspath(
+                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp.nii.gz"
+                ),
+                os.path.abspath(
+                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+                ),
+            ],
+        }
 
-    print("Pipeline config: ", pipeline_config)
-    print("Data folder contents: ", os.listdir(data_folder))
+        # add paths to the nifti files of the template and ccf
+        default_config["input_params"]["image_files"] = {
+            "ccf_template": os.path.abspath(
+                f"{data_folder}/lightsheet_template_ccf_registration/ccf_average_template_25.nii.gz"
+            ),
+            "smartspim_template": os.path.abspath(
+                f"{data_folder}/lightsheet_template_ccf_registration/smartspim_lca_template_25.nii.gz"
+            ),
+        }
 
-    # add orientation information to default_config
-    acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
-    acquisition_configs = utils.read_json_as_dict(acquisition_path)
-    default_config["input_params"]["orientation"] = acquisition_configs["axes"]
+        print("Pipeline config: ", pipeline_config)
+        print("Data folder contents: ", os.listdir(data_folder))
 
-    # TODO dont hard code this
-    default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
-    default_config["reverse_scaling"] = [25 / 16, 25 / 14.4, 25 / 14.4]
+        # add orientation information to default_config
+        acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
+        acquisition_configs = utils.read_json_as_dict(acquisition_path)
+        default_config["input_params"]["orientation"] = acquisition_configs["axes"]
 
-    # combine configs
-    smartspim_config = set_up_pipeline_parameters(
-        pipeline_config=pipeline_config, default_config=default_config
-    )
+        # TODO dont hard code this
+        default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
+        default_config["reverse_scaling"] = [25 / 16, 25 / 14.4, 25 / 14.4]
 
-    smartspim_config["name"] = smartspim_dataset_name
-    smartspim_config["institute_abbreviation"] = institute_abbreviation
+        # combine configs
+        smartspim_config = set_up_pipeline_parameters(
+            pipeline_config=pipeline_config, default_config=default_config
+        )
 
-    quantification.main(
-        data_folder=Path(data_folder),
-        output_quantified_folder=Path(results_folder),
-        intermediate_quantified_folder=Path(scratch_folder),
-        smartspim_config=smartspim_config,
-    )
+        smartspim_config["name"] = smartspim_dataset_name
+        smartspim_config["institute_abbreviation"] = institute_abbreviation
+
+        quantification.main(
+            data_folder=Path(data_folder),
+            output_quantified_folder=Path(results_folder),
+            intermediate_quantified_folder=Path(scratch_folder),
+            smartspim_config=smartspim_config,
+        )
+
+    else:
+        print(f"No quantification channels, pipeline config: {pipeline_config}")
+        utils.save_dict_as_json(
+            filename=f"{results_folder}/segmentation_processing_manifest_empty.json",
+            dictionary=pipeline_config,
+        )
 
 
 if __name__ == "__main__":

@@ -16,7 +16,8 @@ import pickle
 import platform
 import time
 from datetime import datetime
-from typing import List
+from pathlib import Path
+from typing import List, Optional
 
 import ants
 import dask.array as da
@@ -904,13 +905,13 @@ def get_code_ocean_cpu_limit():
         return co_cpus
     if aws_batch_job_id:
         return 1
-    
+
     try:
         with open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us") as fp:
             cfs_quota_us = int(fp.read())
         with open("/sys/fs/cgroup/cpu/cpu.cfs_period_us") as fp:
             cfs_period_us = int(fp.read())
-        
+
         container_cpus = cfs_quota_us // cfs_period_us
 
     except FileNotFoundError as e:
@@ -918,6 +919,7 @@ def get_code_ocean_cpu_limit():
 
     # For physical machine, the `cfs_quota_us` could be '-1'
     return psutil.cpu_count(logical=False) if container_cpus < 1 else container_cpus
+
 
 def print_system_information(logger: logging.Logger):
     """
@@ -1014,6 +1016,7 @@ def print_system_information(logger: logging.Logger):
     logger.info(f"Total Bytes Sent: {get_size(net_io.bytes_sent)}")
     logger.info(f"Total Bytes Received: {get_size(net_io.bytes_recv)}")
 
+
 def create_logger(output_log_path: PathLike):
     """
     Creates a logger that generates
@@ -1051,3 +1054,64 @@ def create_logger(output_log_path: PathLike):
     logger.setLevel(logging.DEBUG)
 
     return logger
+
+
+def check_path_instance(obj: object) -> bool:
+    """
+    Checks if an objects belongs to pathlib.Path subclasses.
+
+    Parameters
+    ------------------------
+
+    obj: object
+        Object that wants to be validated.
+
+    Returns
+    ------------------------
+
+    bool:
+        True if the object is an instance of Path subclass, False otherwise.
+    """
+
+    for childclass in Path.__subclasses__():
+        if isinstance(obj, childclass):
+            return True
+
+    return False
+
+
+def save_dict_as_json(
+    filename: str, dictionary: dict, verbose: Optional[bool] = False
+) -> None:
+    """
+    Saves a dictionary as a json file.
+
+    Parameters
+    ------------------------
+
+    filename: str
+        Name of the json file.
+
+    dictionary: dict
+        Dictionary that will be saved as json.
+
+    verbose: Optional[bool]
+        True if you want to print the path where the file was saved.
+
+    """
+
+    if dictionary is None:
+        dictionary = {}
+
+    else:
+        for key, value in dictionary.items():
+            # Converting path to str to dump dictionary into json
+            if check_path_instance(value):
+                # TODO fix the \\ encode problem in dump
+                dictionary[key] = str(value)
+
+    with open(filename, "w") as json_file:
+        json.dump(dictionary, json_file, indent=4)
+
+    if verbose:
+        print(f"- Json file saved: {filename}")
