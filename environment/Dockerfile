@@ -20,7 +20,6 @@ RUN pip install -U --no-cache-dir \
     dask[distributed]==2022.11.1 \
     scikit-learn==1.5.1 \
     imlib==0.1.3 \
-    git+https://github.com/AllenNeuralDynamics/aind-ng-link.git \
     tqdm==4.65.0 \
     antspyx \
     argschema==3.0.4 \

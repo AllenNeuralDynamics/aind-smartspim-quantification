@@ -31,14 +31,15 @@ from tqdm import tqdm
 from .__init__ import __maintainers__, __pipeline_version__, __version__
 from ._shared.types import PathLike
 from .utils import utils
-from .utils.generate_ccf_cell_count import generate_25_um_ccf_cells
+from .utils import generate_ccf_cell_count as gcc
 
 
 def read_cells_from_csv(
-    cell_likelihoods_path: Union[str, PathLike],
+    cell_likelihoods_path: Union[str, "PathLike"],
     reg_dims: List[int],
     ds: int,
     orient: str,
+    orient_matrix: np.ndarray,
     institute: str,
 ) -> List[tuple]:
     """
@@ -54,14 +55,15 @@ def read_cells_from_csv(
         Factor by which the image for registration was downsampled from input_dims.
     orient: str
         The orientation the brain was imaged.
+    orient_matrix: np.ndarray
+        The direction of the axis of input cells relative to registration
     institute: str
         The institution that imaged the dataset.
 
     Returns
     -------------
-    list
-        List with cell locations as tuples. Orientation needs to be relative
-        to zarr for proper scaling.
+    np.ndarray
+        Array with cell locations scaled and oriented
     """
     if not Path(cell_likelihoods_path).exists():
         raise FileNotFoundError(f"Path {cell_likelihoods_path} does not exist.")
@@ -71,131 +73,28 @@ def read_cells_from_csv(
     cells = []
 
     for _, row in df.iterrows():
+        
         x, y, z = row["x"], row["y"], row["z"]
-
-        if orient == "spr":
-            cells.append(
+    
+        # Corrects for a bug in acquisition as SPL is not an actual imaging orientation
+        if orient == "spl" and institute == "AIBS":
+            y = reg_dims[1] - (y / ds)
+        else:
+            y = y / ds
+    
+        cells.append(
                 (
                     z / ds,
-                    reg_dims[1] - (y / ds),
-                    reg_dims[2] - (x / ds),
-                )
-            )
-        elif orient == "spl" and institute == "AIBS":
-            cells.append(
-                (
-                    z / ds,
-                    reg_dims[1] - (y / ds),
+                    y,
                     x / ds,
                 )
             )
-        elif orient == "spl" and institute == "AIND":
-            cells.append(
-                (
-                    z / ds,
-                    y / ds,
-                    x / ds,
-                )
-            )
-        elif orient == "sal":
-            cells.append(
-                (
-                    z / ds,
-                    y / ds,
-                    reg_dims[2] - (x / ds),
-                )
-            )
-        elif orient == "rpi":
-            cells.append(
-                (
-                    z / ds,
-                    reg_dims[1] - (y / ds),
-                    reg_dims[2] - (x / ds),
-                )
-            )
+    
+    cells = np.array(cells)
 
-    return cells
-
-
-def read_aws_xml(
-    seg_path: PathLike, reg_dims: list, ds: int, orient: str, institute: str
-) -> list:
-    """
-    Imports cell locations from segmentation output
-
-    Parameters
-    -------------
-    seg_path: PathLike
-        Path where the .xml file is located
-    reg_dims: list
-        Resolution (pixels) of the image used for segmentation. Orientation [x (ML), z (DV), y (AP)]
-    ds: int
-        factor by which image for registration was downsampled from input_dims
-    orient: str
-        the orientation the brain was imaged
-    insititute: str
-        the institution that imaged the dataset
-
-    Returns
-    -------------
-    list
-        List with cell locations as tuples (x (ML), y (AP), z (DV))
-    """
-    print(f"seg_path being used is: {seg_path}")
-    client = boto3.client("s3")
-
-    res = client.get_object(
-        Bucket="aind-open-data", Key=seg_path + "/detected_cells.xml"
-    )
-    xml_file = res["Body"].read()
-    file_cells = xmltodict.parse(xml_file)["CellCounter_Marker_File"]["Marker_Data"][
-        "Marker_Type"
-    ]["Marker"]
-
-    cells = []
-
-    for cell in file_cells:
-        # spl is not a real orientation. but a bug from early acquisition script
-        if orient == "spr":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
-                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
-                )
-            )
-        elif orient == "spl" and institute == "AIBS":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
-                    int(cell["MarkerX"]) / ds,
-                )
-            )
-        elif orient == "spl" and institute == "AIND":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    int(cell["MarkerY"]) / ds,
-                    int(cell["MarkerX"]) / ds,
-                )
-            )
-        elif orient == "sal":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    int(cell["MarkerY"]) / ds,
-                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
-                )
-            )
-        elif orient == "rpi":
-            cells.append(
-                (
-                    int(cell["MarkerZ"]) / ds,
-                    reg_dims[1] - (int(cell["MarkerY"]) / ds),
-                    reg_dims[2] - (int(cell["MarkerX"]) / ds),
-                )
-            )
+    for idx, dim_orient in enumerate(orient_matrix.sum(axis = 1)):
+        if dim_orient < 0:
+            cells[:, idx] = reg_dims[idx] - cells[:, idx]
 
     return cells
 
@@ -427,54 +326,33 @@ def generate_neuroglancer_link(
     None.
 
     """
-
-    # neuroglancer link visualization
-    params = {
-        "ccf_cells_precomputed": {  # Parameters to generate CCF + Cells precomputed format
-            "input_path": csv_path,  # Path where the cell_count.csv is located
-            "output_path": ccf_cells_precomputed_output,  # Path where we want to save the CCF + cell location precomputed
-            "ccf_reference_path": None,  # Path where the CCF reference csv is located, set None to get from tissuecyte
-        },
-        "cells_precomputed": {  # Parameters to generate cell points precomputed format
-            "xml_path": transformed_cells_path,  # Path where the cell points are located
-            "output_precomputed": cells_precomputed_output,  # Path where the precomputed format will be stored
-        },
-        "zarr_path": f"{smartspim_config['ccf_registration_folder']}/OMEZarr/image.zarr".replace(
-            str(data_folder), ""
-        ),  # Path where the 25 um zarr image is stored, output from CCF capsule
-        "output_ng_link": smartspim_config["save_path"],
+    
+    smartspim_config['ccf_overlay_precomputed'] = {
+        "input_path": csv_path,  # Path where the cell_count.csv is located
+        "output_path": ccf_cells_precomputed_output,  # Path where we want to save the CCF + cell location precomputed
+        "ccf_reference_path": None,  # Path where the CCF reference csv is located, set None to get from tissuecyte
     }
+
+    
+    image_path = f"{smartspim_config['ccf_registration_folder']}/OMEZarr/image.zarr"
+    dynamic_range = gcc.calculate_dynamic_range(image_path=image_path)
+    
+    cells_from_xml = gcc.get_points_from_xml(transformed_cells_path)
+    cells_df = pd.DataFrame(cells_from_xml)
+    
+    neuroglancer_link = gcc.generate_25_um_ccf_cells(
+        cells_df=cells_df,
+        ng_configs=smartspim_config['ng_config'],
+        smartspim_config=smartspim_config,
+        dynamic_range=dynamic_range,
+        logger=logging.Logger,
+        bucket = 'aind-open-data'    
+        
+    )
 
     logger.info("Generating precomputed formats and visualization link")
     neuroglancer_link = generate_25_um_ccf_cells(params)
     json_state = neuroglancer_link.state
-
-    # Updating json to visualize data on S3
-    process_output_filename = f"image_cell_quantification/{smartspim_config['channel_name']}/visualization/neuroglancer_config.json"
-    dataset_path = smartspim_config["stitched_s3_path"]
-
-    json_state["ng_link"] = (
-        f"https://aind-neuroglancer-sauujisjxq-uw.a.run.app#!{dataset_path}/{process_output_filename}"
-    )
-    logger.info(f"Neuroglancer link: {json_state['ng_link']}")
-    # Updating s3 paths of layers
-
-    # Updating S3 registered brain to future S3 path
-    # Getting registration channel name
-    ccf_reg_channel_name = re.search(
-        "(Ex_[0-9]*_Em_[0-9]*)", smartspim_config["input_params"]["ccf_transforms_path"]
-    ).group()
-
-    ccf_registered_s3_path = f"zarr://{dataset_path}/image_atlas_alignment/{ccf_reg_channel_name}/OMEZarr/image.zarr"
-    json_state["layers"][0]["source"] = ccf_registered_s3_path
-
-    # Updating S3 cell points to future S3 path
-    cell_points_s3_path = f"precomputed://{dataset_path}/image_cell_quantification/{smartspim_config['channel_name']}/visualization/cell_points_precomputed"
-    json_state["layers"][1]["source"] = cell_points_s3_path
-
-    # Updating CCF + cells to future S3 Path
-    ccf_cells_s3_path = f"precomputed://{dataset_path}/image_cell_quantification/{smartspim_config['channel_name']}/visualization/ccf_cell_precomputed"
-    json_state["layers"][2]["source"] = ccf_cells_s3_path
 
     with open(
         f"{smartspim_config['save_path']}/visualization/neuroglancer_config.json", "w"
@@ -568,46 +446,38 @@ def cell_quantification(
     reg_dims = [dim / ds for dim in input_res]
 
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
+    
+    # get orientation information
+    orient = utils.get_orientation(orientation)
+    template_params = utils.get_template_info(image_files["smartspim_template"])
+
+    _, swapped, mat = utils.get_orientation_transform(
+        orient, 
+        template_params["orientation"]
+    )
 
     # Getting cell locations and ccf transformations
     detected_cells_csv_path = Path(detected_cells_csv_path)
 
     orient = utils.get_orientation(orientation)
-    if "detect" in mode:
-        raw_cells = read_cells_from_csv(
-            cell_likelihoods_path=detected_cells_csv_path.joinpath(
-                "detected_cells.csv"
-            ),
-            reg_dims=reg_dims,
-            ds=ds,
-            orient=orient,
-            institute=institute_abbreviation,
-        )
-    elif "reprocess" in mode:
-        raw_cells = read_cells_from_csv(
-            cell_likelihoods_path=detected_cells_csv_path.joinpath(
-                "detected_cells.csv"
-            ),
-            reg_dims=reg_dims,
-            ds=ds,
-            orient=orient,
-            institute=institute_abbreviation,
-        )
-
-    # This is beacuse of a bug in registration
-    if orient == "rpi":
-        scaling = scaling[::-1]
+    
+    raw_cells = read_cells_from_csv(
+        cell_likelihoods_path=detected_cells_csv_path.joinpath(
+            "detected_cells.csv"
+        ),
+        reg_dims=reg_dims,
+        ds=ds,
+        orient=orient,
+        orient_matrix=mat,
+        institute=institute_abbreviation,
+    )
 
     scaled_cells = scale_cells(raw_cells, scaling)
-    template_params = utils.get_template_info(image_files["smartspim_template"])
+    orient_cells = scaled_cells[:, swapped]
 
     logger.info(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
-    _, swapped, _ = utils.get_orientation_transform(
-        orient, template_params["orientation"]
-    )
-    orient_cells = np.array(scaled_cells)[:, swapped]
 
     logger.info("Converting oriented cells into ANTs physical space")
     template_params = utils.get_template_info(image_files["smartspim_template"])
@@ -623,13 +493,14 @@ def cell_quantification(
         template_cells, ccf_transforms, invert=(False, True)
     )
 
-    logger.info("Conver cells back into index space")
+    logger.info("Convert cells back into index space")
     ccf_params = utils.get_template_info(image_files["ccf_template"])
     ccf_cells = convert_from_ants_space(ccf_params, ccf_pts)
 
     _, swapped, _ = utils.get_orientation_transform(
         template_params["orientation"], ccf_params["orientation"]
     )
+    
     cells_transformed = ccf_cells[:, swapped]
 
     # Getting annotation map and meshes path
@@ -775,12 +646,6 @@ def quantification_metrics(
             template_params["orientation"], orient
         )
         converted_verts = converted_verts[:, swapped]
-
-        # this is also because of the bug in registration
-        if orient == "rpi":
-            reverse_scaling = reverse_scaling[::-1]
-            img = utils.orient_image(img, mat)
-
         out_verts = scale_cells(converted_verts, reverse_scaling)
 
         # get metrics

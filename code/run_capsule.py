@@ -221,20 +221,20 @@ def run():
         # add paths to ls_to_template transforms
         default_config["input_params"]["template_transforms"] = [
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]     
             ),
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
             ),
         ]
 
         # add paths to template_to_ccf transforms
         default_config["input_params"]["ccf_transforms"] = [
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
+                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
             ),
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
+                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
             ),
         ]
 
@@ -268,6 +268,21 @@ def run():
             "smartspim_template": os.path.abspath(
                 f"{data_folder}/lightsheet_template_ccf_registration/smartspim_lca_template_25.nii.gz"
             ),
+        }
+        
+        default_config['ng_config'] = {
+            "base_url": "https://neuroglancer-demo.appspot.com/#!",
+            "crossSectionScale": 1,
+            "projectionScale": 1024,
+            "orientation": pipeline_config["prelim_acquisition"],
+            "dimensions" : {
+                "z": [25 * 10**-6, 'm' ],
+                "y": [25 * 10**-6, 'm' ],
+                "x": [25 * 10**-6, 'm' ],
+                "t": [0.001, 's'],
+            },
+            "rank": 3,
+            "gpuMemoryLimit": 1500000000,
         }
 
         print("Pipeline config: ", pipeline_config)
