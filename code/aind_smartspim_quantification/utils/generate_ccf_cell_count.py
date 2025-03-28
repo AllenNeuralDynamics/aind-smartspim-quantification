@@ -100,7 +100,7 @@ def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
 
     return new_cell_data
 
-def calculate_dynamic_range(image_path: PathLike, percentile: 99, level: 3):
+def calculate_dynamic_range(image_path: PathLike, percentile = 99, level = 3):
     """
     Calculates the default dynamic range for teh neuroglancer link
     using a defined percentile from the downsampled zarr
@@ -109,9 +109,9 @@ def calculate_dynamic_range(image_path: PathLike, percentile: 99, level: 3):
     ----------
     image_path : PathLike
         location of the zarr used for classification
-    percentile : 99
+    percentile : int
         The top percentile value for setting the dynamic range
-    level : 3
+    level : int
         level of zarr to use for calculating percentile
 
     Returns
@@ -445,7 +445,7 @@ def generate_25_um_ccf_cells(
     return output_path
 
 if __name__ == "__main__":
-    params = {
+    params  = {
         "ccf_cells_precomputed": {  # Parameters to generate CCF + Cells precomputed format
             "input_path": "/Users/camilo.laiton/Downloads/cell_count_by_region.csv",  # Path where the cell_count.csv is located
             "output_path": "/Users/camilo.laiton/repositories/new_ng_link/aind-ng-link/src/ng_link/scripts/CCF_Cells_Test",  # Path where we want to save the CCF + cell location precomputed

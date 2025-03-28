@@ -18,6 +18,7 @@ SHELL ["conda", "run", "-n", "quantification", "/bin/bash", "-c"]
 RUN pip install -U --no-cache-dir \
     numpy==1.24.0 \
     dask[distributed]==2022.11.1 \
+    zarr==2.13.6 \
     scikit-learn==1.5.1 \
     imlib==0.1.3 \
     tqdm==4.65.0 \

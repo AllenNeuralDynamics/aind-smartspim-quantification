@@ -34,6 +34,62 @@ from .utils import utils
 from .utils import generate_ccf_cell_count as gcc
 
 
+def read_cells_from_xml(
+    cell_likelihoods_path: Union[str, "PathLike"],
+    reg_dims: List[int],
+    ds: int,
+    orient: str,
+    orient_matrix: np.ndarray,
+    institute: str,
+) -> List[tuple]:
+    """
+    Imports cell locations from a XML file of cell likelihoods.
+
+    Parameters
+    -------------
+    cell_likelihoods_path: str or PathLike
+        Path to the cell likelihoods XML file.
+    reg_dims: list
+        Resolution (pixels) of the image used for segmentation, ordered relative to zarr.
+    ds: int
+        Factor by which the image for registration was downsampled from input_dims.
+    orient: str
+        The orientation the brain was imaged.
+    orient_matrix: np.ndarray
+        The direction of the axis of input cells relative to registration
+    institute: str
+        The institution that imaged the dataset.
+
+    Returns
+    -------------
+    np.ndarray
+        Array with cell locations scaled and oriented
+    """
+    if not Path(cell_likelihoods_path).exists():
+        raise FileNotFoundError(f"Path {cell_likelihoods_path} does not exist.")
+
+    cells_list = gcc.get_points_from_xml(cell_likelihoods_path)
+
+    cells = []
+
+    for row in cells_list:
+        
+        x, y, z = int(row["x"]), int(row["y"]), int(row["z"])
+    
+        # Corrects for a bug in acquisition as SPL is not an actual imaging orientation
+        if orient == "spl" and institute == "AIBS":
+            y = reg_dims[1] - (y / ds)
+        else:
+            y = y / ds
+    
+        cells.append(
+                (z / ds, y, x / ds)
+            )
+    
+    cells = np.array(cells)
+
+    return cells
+
 def read_cells_from_csv(
     cell_likelihoods_path: Union[str, "PathLike"],
     reg_dims: List[int],
@@ -83,11 +139,7 @@ def read_cells_from_csv(
             y = y / ds
     
         cells.append(
-                (
-                    z / ds,
-                    y,
-                    x / ds,
-                )
+                (z / ds, y, x / ds)
             )
     
     cells = np.array(cells)
@@ -345,19 +397,10 @@ def generate_neuroglancer_link(
         ng_configs=smartspim_config['ng_config'],
         smartspim_config=smartspim_config,
         dynamic_range=dynamic_range,
-        logger=logging.Logger,
+        logger=logger,
         bucket = 'aind-open-data'    
         
     )
-
-    logger.info("Generating precomputed formats and visualization link")
-    neuroglancer_link = generate_25_um_ccf_cells(params)
-    json_state = neuroglancer_link.state
-
-    with open(
-        f"{smartspim_config['save_path']}/visualization/neuroglancer_config.json", "w"
-    ) as outfile:
-        json.dump(json_state, outfile, indent=2)
 
 
 def cell_quantification(
@@ -485,12 +528,12 @@ def cell_quantification(
 
     logger.info("Registering Cells to SmartSPIM template")
     template_cells = apply_transforms_to_points(
-        ants_cells, template_transforms, invert=(False, True)
+        ants_cells, template_transforms, invert=(True, False)
     )
 
     logger.info("Convert template cells into CCF space and orientation")
     ccf_pts = apply_transforms_to_points(
-        template_cells, ccf_transforms, invert=(False, True)
+        template_cells, ccf_transforms, invert=(True, False)
     )
 
     logger.info("Convert cells back into index space")
@@ -713,6 +756,7 @@ def main(
     """
     data_processes = []
     metadata_path_res = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0/.zarray"
+    
     input_res = utils.read_json_as_dict(metadata_path_res)["shape"]
 
     # input res is returned in order tczyx, here we use xzy
@@ -767,6 +811,7 @@ def main(
         f'{smartspim_config["input_params"]["ccf_transforms_path"]}/OMEZarr/image.zarr/0/'
     )
 
+    logger.info("Calculating Registration Metrics on Image")
     metric_params = {
         "region_list": smartspim_config["region_list"],
         "reference_microns_ccf": smartspim_config["input_params"][
