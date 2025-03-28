@@ -93,6 +93,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
 
     # Added to handle registration testing
     s3_path = pipeline_config["stitching"]["s3_path"]
+
     if "test" in s3_path:
         s3_seg_path = s3_path.replace("test", "stitched")
     else:
@@ -196,7 +197,7 @@ def run():
             )
         )
 
-        ccf_folder = glob(f"{data_folder}/ccf_*")
+        ccf_folder = glob(f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}")
 
         if len(ccf_folder):
             ccf_folder = ccf_folder[0]
@@ -221,7 +222,7 @@ def run():
         # add paths to ls_to_template transforms
         default_config["input_params"]["template_transforms"] = [
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]     
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
             ),
             os.path.abspath(
                 glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
@@ -245,9 +246,7 @@ def run():
                     glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
                 ),
                 os.path.abspath(
-                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[
-                        0
-                    ]
+                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
                 ),
             ],
             "ccf_transforms": [
@@ -273,7 +272,7 @@ def run():
         default_config['ng_config'] = {
             "base_url": "https://neuroglancer-demo.appspot.com/#!",
             "crossSectionScale": 1,
-            "projectionScale": 1024,
+            "projectionScale": 512,
             "orientation": pipeline_config["prelim_acquisition"],
             "dimensions" : {
                 "z": [25 * 10**-6, 'm' ],
