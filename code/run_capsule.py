@@ -268,12 +268,16 @@ def run():
                 f"{data_folder}/lightsheet_template_ccf_registration/smartspim_lca_template_25.nii.gz"
             ),
         }
+
+        # add orientation information to default_config
+        acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
+        acquisition_configs = utils.read_json_as_dict(acquisition_path)
         
         default_config['ng_config'] = {
             "base_url": "https://neuroglancer-demo.appspot.com/#!",
             "crossSectionScale": 1,
             "projectionScale": 512,
-            "orientation": pipeline_config["prelim_acquisition"],
+            "orientation": acquisition_configs,
             "dimensions" : {
                 "z": [25 * 10**-6, 'm' ],
                 "y": [25 * 10**-6, 'm' ],
@@ -287,9 +291,7 @@ def run():
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
 
-        # add orientation information to default_config
-        acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
-        acquisition_configs = utils.read_json_as_dict(acquisition_path)
+
         default_config["input_params"]["orientation"] = acquisition_configs["axes"]
 
         # TODO dont hard code this
