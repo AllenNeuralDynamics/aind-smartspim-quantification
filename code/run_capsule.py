@@ -186,7 +186,6 @@ def run():
     quantification_info = pipeline_config.get("quantification")
 
     if quantification_info is not None:
-
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
 
@@ -197,7 +196,9 @@ def run():
             )
         )
 
-        ccf_folder = glob(f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}")
+        ccf_folder = glob(
+            f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}"
+        )
 
         if len(ccf_folder):
             ccf_folder = ccf_folder[0]
@@ -212,9 +213,9 @@ def run():
             )
             default_config["input_params"]["mode"] = "detect"
         elif "reprocess" in mode:
-            default_config["cell_segmentation_folder"] = (
-                f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
-            )
+            default_config[
+                "cell_segmentation_folder"
+            ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
             default_config["input_params"]["mode"] = "reprocess"
         else:
             raise NotImplementedError(f"The mode {mode} has not been implemented")
@@ -246,7 +247,9 @@ def run():
                     glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
                 ),
                 os.path.abspath(
-                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[
+                        0
+                    ]
                 ),
             ],
             "ccf_transforms": [
@@ -272,17 +275,17 @@ def run():
         # add orientation information to default_config
         acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
         acquisition_configs = utils.read_json_as_dict(acquisition_path)
-        
-        default_config['ng_config'] = {
+
+        default_config["ng_config"] = {
             "base_url": "https://neuroglancer-demo.appspot.com/#!",
             "crossSectionScale": 1,
             "projectionScale": 512,
             "orientation": acquisition_configs,
-            "dimensions" : {
-                "z": [25 * 10**-6, 'm' ],
-                "y": [25 * 10**-6, 'm' ],
-                "x": [25 * 10**-6, 'm' ],
-                "t": [0.001, 's'],
+            "dimensions": {
+                "z": [25 * 10**-6, "m"],
+                "y": [25 * 10**-6, "m"],
+                "x": [25 * 10**-6, "m"],
+                "t": [0.001, "s"],
             },
             "rank": 3,
             "gpuMemoryLimit": 1500000000,
@@ -290,7 +293,6 @@ def run():
 
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
-
 
         default_config["input_params"]["orientation"] = acquisition_configs["axes"]
 

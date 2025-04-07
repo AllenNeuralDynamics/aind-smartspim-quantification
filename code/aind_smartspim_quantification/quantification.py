@@ -30,8 +30,8 @@ from tqdm import tqdm
 
 from .__init__ import __maintainers__, __pipeline_version__, __version__
 from ._shared.types import PathLike
-from .utils import utils
 from .utils import generate_ccf_cell_count as gcc
+from .utils import utils
 
 
 def read_cells_from_xml(
@@ -73,22 +73,20 @@ def read_cells_from_xml(
     cells = []
 
     for row in cells_list:
-        
         x, y, z = int(row["x"]), int(row["y"]), int(row["z"])
-    
+
         # Corrects for a bug in acquisition as SPL is not an actual imaging orientation
         if orient == "spl" and institute == "AIBS":
             y = reg_dims[1] - (y / ds)
         else:
             y = y / ds
-    
-        cells.append(
-                (z / ds, y, x / ds)
-            )
-    
+
+        cells.append((z / ds, y, x / ds))
+
     cells = np.array(cells)
 
     return cells
+
 
 def read_cells_from_csv(
     cell_likelihoods_path: Union[str, "PathLike"],
@@ -129,22 +127,19 @@ def read_cells_from_csv(
     cells = []
 
     for _, row in df.iterrows():
-        
         x, y, z = row["x"], row["y"], row["z"]
-    
+
         # Corrects for a bug in acquisition as SPL is not an actual imaging orientation
         if orient == "spl" and institute == "AIBS":
             y = reg_dims[1] - (y / ds)
         else:
             y = y / ds
-    
-        cells.append(
-                (z / ds, y, x / ds)
-            )
-    
+
+        cells.append((z / ds, y, x / ds))
+
     cells = np.array(cells)
 
-    for idx, dim_orient in enumerate(orient_matrix.sum(axis = 1)):
+    for idx, dim_orient in enumerate(orient_matrix.sum(axis=1)):
         if dim_orient < 0:
             cells[:, idx] = reg_dims[idx] - cells[:, idx]
 
@@ -378,28 +373,26 @@ def generate_neuroglancer_link(
     None.
 
     """
-    
-    smartspim_config['ccf_overlay_precomputed'] = {
+
+    smartspim_config["ccf_overlay_precomputed"] = {
         "input_path": csv_path,  # Path where the cell_count.csv is located
         "output_path": ccf_cells_precomputed_output,  # Path where we want to save the CCF + cell location precomputed
         "ccf_reference_path": None,  # Path where the CCF reference csv is located, set None to get from tissuecyte
     }
 
-    
     image_path = f"{smartspim_config['ccf_registration_folder']}/OMEZarr/image.zarr"
     dynamic_range = gcc.calculate_dynamic_range(image_path=image_path)
-    
+
     cells_from_xml = gcc.get_points_from_xml(transformed_cells_path)
     cells_df = pd.DataFrame(cells_from_xml)
-    
+
     neuroglancer_link = gcc.generate_25_um_ccf_cells(
         cells_df=cells_df,
-        ng_configs=smartspim_config['ng_config'],
+        ng_configs=smartspim_config["ng_config"],
         smartspim_config=smartspim_config,
         dynamic_range=dynamic_range,
         logger=logger,
-        bucket = 'aind-open-data'    
-        
+        bucket="aind-open-data",
     )
 
 
@@ -489,25 +482,22 @@ def cell_quantification(
     reg_dims = [dim / ds for dim in input_res]
 
     logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
-    
+
     # get orientation information
     orient = utils.get_orientation(orientation)
     template_params = utils.get_template_info(image_files["smartspim_template"])
 
     _, swapped, mat = utils.get_orientation_transform(
-        orient, 
-        template_params["orientation"]
+        orient, template_params["orientation"]
     )
 
     # Getting cell locations and ccf transformations
     detected_cells_csv_path = Path(detected_cells_csv_path)
 
     orient = utils.get_orientation(orientation)
-    
+
     raw_cells = read_cells_from_csv(
-        cell_likelihoods_path=detected_cells_csv_path.joinpath(
-            "detected_cells.csv"
-        ),
+        cell_likelihoods_path=detected_cells_csv_path.joinpath("detected_cells.csv"),
         reg_dims=reg_dims,
         ds=ds,
         orient=orient,
@@ -543,7 +533,7 @@ def cell_quantification(
     _, swapped, _ = utils.get_orientation_transform(
         template_params["orientation"], ccf_params["orientation"]
     )
-    
+
     cells_transformed = ccf_cells[:, swapped]
 
     # Getting annotation map and meshes path
@@ -756,7 +746,7 @@ def main(
     """
     data_processes = []
     metadata_path_res = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0/.zarray"
-    
+
     input_res = utils.read_json_as_dict(metadata_path_res)["shape"]
 
     # input res is returned in order tczyx, here we use xzy
