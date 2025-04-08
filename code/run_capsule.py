@@ -93,6 +93,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
 
     # Added to handle registration testing
     s3_path = pipeline_config["stitching"]["s3_path"]
+
     if "test" in s3_path:
         s3_seg_path = s3_path.replace("test", "stitched")
     else:
@@ -185,7 +186,6 @@ def run():
     quantification_info = pipeline_config.get("quantification")
 
     if quantification_info is not None:
-
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
 
@@ -196,7 +196,9 @@ def run():
             )
         )
 
-        ccf_folder = glob(f"{data_folder}/ccf_*")
+        ccf_folder = glob(
+            f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}"
+        )
 
         if len(ccf_folder):
             ccf_folder = ccf_folder[0]
@@ -211,9 +213,9 @@ def run():
             )
             default_config["input_params"]["mode"] = "detect"
         elif "reprocess" in mode:
-            default_config["cell_segmentation_folder"] = (
-                f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
-            )
+            default_config[
+                "cell_segmentation_folder"
+            ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
             default_config["input_params"]["mode"] = "reprocess"
         else:
             raise NotImplementedError(f"The mode {mode} has not been implemented")
@@ -221,20 +223,20 @@ def run():
         # add paths to ls_to_template transforms
         default_config["input_params"]["template_transforms"] = [
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
             ),
             os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
+                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
             ),
         ]
 
         # add paths to template_to_ccf transforms
         default_config["input_params"]["ccf_transforms"] = [
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
+                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
             ),
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
+                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
             ),
         ]
 
@@ -270,12 +272,29 @@ def run():
             ),
         }
 
-        print("Pipeline config: ", pipeline_config)
-        print("Data folder contents: ", os.listdir(data_folder))
-
         # add orientation information to default_config
         acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
         acquisition_configs = utils.read_json_as_dict(acquisition_path)
+        ccf_res_microns = 25
+
+        default_config["ng_config"] = {
+            "base_url": "https://neuroglancer-demo.appspot.com/#!",
+            "crossSectionScale": 1,
+            "projectionScale": 512,
+            "orientation": acquisition_configs,
+            "dimensions": {
+                "z": [ccf_res_microns * 10**-6, "m"],
+                "y": [ccf_res_microns * 10**-6, "m"],
+                "x": [ccf_res_microns * 10**-6, "m"],
+                "t": [0.001, "s"],
+            },
+            "rank": 3,
+            "gpuMemoryLimit": 1500000000,
+        }
+
+        print("Pipeline config: ", pipeline_config)
+        print("Data folder contents: ", os.listdir(data_folder))
+
         default_config["input_params"]["orientation"] = acquisition_configs["axes"]
 
         # TODO dont hard code this
