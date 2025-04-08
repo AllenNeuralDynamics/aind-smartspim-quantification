@@ -275,6 +275,7 @@ def run():
         # add orientation information to default_config
         acquisition_path = os.path.abspath(f"{data_folder}/acquisition.json")
         acquisition_configs = utils.read_json_as_dict(acquisition_path)
+        ccf_res_microns = 25
 
         default_config["ng_config"] = {
             "base_url": "https://neuroglancer-demo.appspot.com/#!",
@@ -282,9 +283,9 @@ def run():
             "projectionScale": 512,
             "orientation": acquisition_configs,
             "dimensions": {
-                "z": [25 * 10**-6, "m"],
-                "y": [25 * 10**-6, "m"],
-                "x": [25 * 10**-6, "m"],
+                "z": [ccf_res_microns * 10**-6, "m"],
+                "y": [ccf_res_microns * 10**-6, "m"],
+                "x": [ccf_res_microns * 10**-6, "m"],
                 "t": [0.001, "s"],
             },
             "rank": 3,
