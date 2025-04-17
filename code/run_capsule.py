@@ -62,7 +62,11 @@ def get_data_config(
     return derivatives_dict, smartspim_dataset, institution_abbreviation
 
 
-def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
+def set_up_pipeline_parameters(
+    pipeline_config: dict,
+    default_config: dict,
+    smartspim_dataset_name: str
+):
     """
     Sets up smartspim stitching parameters that come from the
     pipeline configuration
@@ -82,6 +86,9 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
         parameters to execute this capsule with
         smartspim data
 
+    smartspim_dataset_name: str
+        Smartspim dataset name for the s3 path.
+
     Returns
     -----------
     Dict
@@ -92,7 +99,7 @@ def set_up_pipeline_parameters(pipeline_config: dict, default_config: dict):
     )
 
     # Added to handle registration testing
-    s3_path = pipeline_config["stitching"]["s3_path"]
+    s3_path = pipeline_config["stitching"].get("s3_path", f"s3://aind-open-data/{smartspim_dataset_name}")
 
     if "test" in s3_path:
         s3_seg_path = s3_path.replace("test", "stitched")
@@ -303,7 +310,9 @@ def run():
 
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
-            pipeline_config=pipeline_config, default_config=default_config
+            pipeline_config=pipeline_config,
+            default_config=default_config,
+            smartspim_dataset_name=smartspim_dataset_name
         )
 
         smartspim_config["name"] = smartspim_dataset_name
