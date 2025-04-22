@@ -8,7 +8,7 @@ Please, refer to these repositories to be able to generate these results:
 
 ## Outputs
 
-The 'Cell_count_by_region.csv' file contains the number of cells in each region of the 25um Allen Brain atlas:
+The <Cell_count_by_region.csv> file contains the number of cells in each region of the 25um Allen Brain atlas:
 
 'ID': Unique numerical identifier for a given region
 'Acronym': Acronym associated with region
