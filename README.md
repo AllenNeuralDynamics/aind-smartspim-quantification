@@ -16,15 +16,15 @@ The `cell_count_by_region.csv` file contains the number of cells in each region 
 `Parent Region`: Location of region within commonly used high-level parent regions  
 `Layer`: Cortical layer of region if applicable  
 `Ancestors`: Full list of upstream parent regions  
-`Graph Order`: Location within the Allen Brain Atlas structure graph https://api.brain-map.org/api/v2/structure_graph_download/1.json  
-`Struct_Info`: Identifies regions that exist across the ML midline (mid) or are seperated in each hemisphere (hemi)  
+`Graph Order`: Location within the Allen Brain Atlas structure graph  
+`Struct_Info`: Identifies regions that across the midline or are seperated in each hemisphere     
 `Struct_area_um3`: The total volume of a region in voxels   
-`Left`: The total number of cells identified in the left hemisphere of a region  
-`Right`: The total number of cells identified in the right hemisphere of a region  
-`Total`: The total number of cells identified within a region  
-`Left_Density`: The density of cells (cells/voxel) identified in the left hemisphere of a region  
-`Right_Density`: The density of cells (cells/voxel) identified in the right hemisphere of a region  
-`Total_Density`: The total density of cells (cells/voxel) identified within a region  
+`Left`: Total number of cells identified in the left hemisphere of a region  
+`Right`: Total number of cells identified in the right hemisphere of a region  
+`Total`: Total number of cells identified within a region  
+`Left_Density`: Density of cells (cells/voxel) identified in the left hemisphere of a region  
+`Right_Density`: Density of cells (cells/voxel) identified in the right hemisphere of a region  
+`Total_Density`: Dotal density of cells (cells/voxel) identified within a region  
 
 The `transformed_cells.xml` contains cell coordinates in CCF space:
 
