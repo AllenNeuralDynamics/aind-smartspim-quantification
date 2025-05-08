@@ -1,18 +1,16 @@
-FROM continuumio/miniconda3:23.9.0-0
-LABEL maintainer="Camilo Laiton <camilo.laiton@alleninstitute.org>"
+# ----------- Builder Stage ----------- #
+FROM continuumio/miniconda3:23.9.0-0 as builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libxrender1 git && \
     rm -rf /var/lib/apt/lists/*
 
+# Create conda environment and install packages
 RUN conda create -n quantification python=3.9 --no-default-packages -y && \
-    conda clean --all --yes
-
-ENV PATH="/opt/conda/envs/quantification/bin:$PATH"
-
-RUN pip install --no-cache-dir \
+    /opt/conda/envs/quantification/bin/pip install --no-cache-dir \
     numpy==1.24.0 \
     dask[distributed]==2022.11.1 \
     scikit-learn==1.5.1 \
@@ -27,6 +25,30 @@ RUN pip install --no-cache-dir \
     boto3==1.26.112 \
     vedo==2023.4.6 \
     aind-data-schema==1.0.0 && \
-    pip install --no-cache-dir git+https://github.com/AllenNeuralDynamics/aind-ng-link.git
+    pip install --no-cache-dir git+https://github.com/AllenNeuralDynamics/aind-ng-link.git && \
+    conda clean --all --yes
 
+# ----------- Final Stage ----------- #
+FROM continuumio/miniconda3:23.9.0-0
+
+LABEL maintainer="Camilo Laiton <camilo.laiton@alleninstitute.org>" \
+    org.opencontainers.image.title="Image Quantification" \
+    org.opencontainers.image.description="Container for image quantification using registration transforms and cell locations." \
+    org.opencontainers.image.version="1.6.1" \
+    org.opencontainers.image.licenses="MIT"
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Minimal system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libxrender1 git && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy conda environment from builder
+COPY --from=builder /opt/conda/envs/quantification /opt/conda/envs/quantification
+
+# Activate environment
+ENV PATH="/opt/conda/envs/quantification/bin:$PATH"
+
+# Optional default command
 CMD ["bash"]
