@@ -301,12 +301,16 @@ def run():
 
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
-
+        
+        # get scaling paramaters of image for registering points
         default_config["input_params"]["orientation"] = acquisition_configs["axes"]
-
-        # TODO dont hard code this
-        default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
-        default_config["reverse_scaling"] = [25 / 16, 25 / 14.4, 25 / 14.4]
+        acquisition_res = acquisition_configs["tiles"][0]['coordinate_transformations'][1]['scale']
+        
+        reg_scale = pipeline_config['pipeline_processing']['registation']['input_scale']
+        reg_res = [float(res)/reg_scale for res in acquisition_res]
+        
+        default_config["input_params"]["scaling"] = [res/ccf_res_microns for res in reg_res]
+        default_config["reverse_scaling"] = [ccf_res_microns/res for res in reg_res]
 
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
