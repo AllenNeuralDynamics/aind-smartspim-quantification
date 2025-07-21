@@ -160,6 +160,35 @@ def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
 
     return missing_inputs
 
+def get_estimated_downsample(
+    voxel_resolution: List[float], registration_res: Tuple[float] = (16.0, 14.4, 14.4)
+) -> int:
+    """
+    Get the estimated multiscale based on the provided
+    voxel resolution. This is used for image stitching.
+
+    e.g., if the original resolution is (1.8. 1.8, 2.0)
+    in XYZ order, and you provide (3.6, 3.6, 4.0) as
+    image resolution, then the picked resolution will be
+    1.
+
+    Parameters
+    ----------
+    voxel_resolution: List[float]
+        Image original resolution. This would be the resolution
+        in the multiscale "0".
+    registration_res: Tuple[float]
+        Approximated resolution that was used for registration
+        in the computation of the transforms. Default: (16.0, 14.4, 14.4)
+    """
+
+    downsample_versions = []
+    for idx in range(len(voxel_resolution)):
+        downsample_versions.append(registration_res[idx] // voxel_resolution[idx])
+
+    downsample_res = int(min(downsample_versions) - 1)
+    return downsample_res
+
 
 def run():
     """
@@ -306,7 +335,7 @@ def run():
         default_config["input_params"]["orientation"] = acquisition_configs["axes"]
         acquisition_res = acquisition_configs["tiles"][0]['coordinate_transformations'][1]['scale']
         
-        reg_scale = pipeline_config['pipeline_processing']['registation']['input_scale']
+        reg_scale = get_estimated_downsample(acquisition_res)
         reg_res = [float(res)/reg_scale for res in acquisition_res]
         
         default_config["input_params"]["scaling"] = [res/ccf_res_microns for res in reg_res]
