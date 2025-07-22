@@ -1,4 +1,4 @@
-""" Parameters used in the quantification script """
+"""Parameters used in the quantification script"""
 
 import os
 from pathlib import Path

@@ -63,9 +63,7 @@ def get_data_config(
 
 
 def set_up_pipeline_parameters(
-    pipeline_config: dict,
-    default_config: dict,
-    smartspim_dataset_name: str
+    pipeline_config: dict, default_config: dict, smartspim_dataset_name: str
 ):
     """
     Sets up smartspim stitching parameters that come from the
@@ -99,7 +97,9 @@ def set_up_pipeline_parameters(
     )
 
     # Added to handle registration testing
-    s3_path = pipeline_config["stitching"].get("s3_path", f"s3://aind-open-data/{smartspim_dataset_name}")
+    s3_path = pipeline_config["stitching"].get(
+        "s3_path", f"s3://aind-open-data/{smartspim_dataset_name}"
+    )
 
     if "test" in s3_path:
         s3_seg_path = s3_path.replace("test", "stitched")
@@ -220,9 +220,9 @@ def run():
             )
             default_config["input_params"]["mode"] = "detect"
         elif "reprocess" in mode:
-            default_config[
-                "cell_segmentation_folder"
-            ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+            default_config["cell_segmentation_folder"] = (
+                f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+            )
             default_config["input_params"]["mode"] = "reprocess"
         else:
             raise NotImplementedError(f"The mode {mode} has not been implemented")
@@ -240,10 +240,10 @@ def run():
         # add paths to template_to_ccf transforms
         default_config["input_params"]["ccf_transforms"] = [
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine_25.mat"
             ),
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1InverseWarp_25.nii.gz"
             ),
         ]
 
@@ -261,10 +261,10 @@ def run():
             ],
             "ccf_transforms": [
                 os.path.abspath(
-                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp.nii.gz"
+                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp_25.nii.gz"
                 ),
                 os.path.abspath(
-                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine_25.mat"
                 ),
             ],
         }
@@ -312,7 +312,7 @@ def run():
         smartspim_config = set_up_pipeline_parameters(
             pipeline_config=pipeline_config,
             default_config=default_config,
-            smartspim_dataset_name=smartspim_dataset_name
+            smartspim_dataset_name=smartspim_dataset_name,
         )
 
         smartspim_config["name"] = smartspim_dataset_name

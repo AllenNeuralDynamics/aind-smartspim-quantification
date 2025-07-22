@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import xmltodict
 
-from .utils import create_folder
+from .utils import create_folder, get_cpu_limit
 
 # IO types
 PathLike = Union[str, Path]
@@ -261,7 +261,7 @@ def generate_precomputed_cells(cells, precompute_path, configs):
         if not isinstance(buf, type(None)):
             buf.extend(struct.pack("<Q", total_count))
 
-            with multiprocessing.Pool(processes=os.cpu_count()) as p:
+            with multiprocessing.Pool(processes=int(get_cpu_limit())) as p:
                 p.starmap(buf_builder, [(x, y, z, buf) for (x, y, z) in cell_list])
 
             # write the ids at the end of the buffer as increasing integers
