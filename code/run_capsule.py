@@ -8,6 +8,8 @@ import sys
 from glob import glob
 from pathlib import Path
 from typing import List, Tuple
+import zarr
+from ome_zarr.reader import Reader
 
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
@@ -94,6 +96,7 @@ def set_up_pipeline_parameters(
     Dict
         Dictionary with the combined parameters
     """
+
     default_config["fused_folder"] = os.path.abspath(
         f"{pipeline_config['quantification']['fused_folder']}"
     )
@@ -112,9 +115,6 @@ def set_up_pipeline_parameters(
     default_config["save_path"] = os.path.abspath(
         f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}"
     )
-    default_config["input_params"]["downsample_res"] = pipeline_config["registration"][
-        "input_scale"
-    ]
 
     if default_config["input_params"]["mode"] == "detect":
         default_config["input_params"][
@@ -189,6 +189,33 @@ def get_estimated_downsample(
     downsample_res = int(min(downsample_versions) - 1)
     return downsample_res
 
+def get_zarr_metadata(zarr_path):
+    """
+    Opens a ZARR file and retrieves its metadata.
+
+    Parameters
+    ----------
+    zarr_path : str
+        file path to zarr file.
+
+    Returns
+    -------
+    image_node : ome_zarr.reader.Node
+        The image node of the ZARR file.
+    zarr_meta : dict
+        Metadata of the ZARR file.
+    """
+
+    store = zarr.DirectoryStore(zarr_path)
+    reader = Reader(store)
+
+    # nodes may include images, labels etc
+    nodes = list(reader())
+
+    # first node will be the image pixel data
+    image_node = nodes[0]
+    zarr_meta = image_node.metadata
+    return image_node, zarr_meta
 
 def run():
     """
@@ -269,10 +296,10 @@ def run():
         # add paths to template_to_ccf transforms
         default_config["input_params"]["ccf_transforms"] = [
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
             ),
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1InverseWarp.nii.gz"
             ),
         ]
 
@@ -332,14 +359,7 @@ def run():
         print("Data folder contents: ", os.listdir(data_folder))
         
         # get scaling paramaters of image for registering points
-        default_config["input_params"]["orientation"] = acquisition_configs["axes"]
-        acquisition_res = acquisition_configs["tiles"][0]['coordinate_transformations'][1]['scale']
-        
-        reg_scale = get_estimated_downsample(acquisition_res)
-        reg_res = [float(res)/reg_scale for res in acquisition_res]
-        
-        default_config["input_params"]["scaling"] = [res/ccf_res_microns for res in reg_res]
-        default_config["reverse_scaling"] = [ccf_res_microns/res for res in reg_res]
+
 
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
@@ -350,6 +370,17 @@ def run():
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
+
+        #get zarr resolution
+        zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
+        zarr_attrs = utils.read_json_as_dict(zarr_attrs)
+        acquisition_res = zarr_attrs['multiscales'][0]['datasets'][0]['coordinateTransformations'][0]['scale'][2:]
+        reg_scale = get_estimated_downsample(acquisition_res)
+        reg_res = [float(res)/reg_scale for res in acquisition_res]
+        
+        smartspim_config["input_params"]["downsample_res"] = reg_scale
+        smartspim_config["input_params"]["scaling"] = [res/ccf_res_microns for res in reg_res]
+        smartspim_config["reverse_scaling"] = [ccf_res_microns/res for res in reg_res]
 
         quantification.main(
             data_folder=Path(data_folder),
