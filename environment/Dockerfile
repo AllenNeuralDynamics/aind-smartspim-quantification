@@ -30,4 +30,5 @@ RUN pip install -U --no-cache-dir \
     neuroglancer==2.36 \
     boto3==1.26.112 \
     vedo==2023.4.6 \
+    ome-zarr==0.8.2 \
     aind-data-schema==1.0.0

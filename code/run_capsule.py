@@ -9,10 +9,12 @@ from glob import glob
 from pathlib import Path
 from typing import List, Tuple
 
+import zarr
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
 from aind_smartspim_quantification.utils import utils
+from ome_zarr.reader import Reader
 
 
 def get_data_config(
@@ -63,9 +65,7 @@ def get_data_config(
 
 
 def set_up_pipeline_parameters(
-    pipeline_config: dict,
-    default_config: dict,
-    smartspim_dataset_name: str
+    pipeline_config: dict, default_config: dict, smartspim_dataset_name: str
 ):
     """
     Sets up smartspim stitching parameters that come from the
@@ -94,12 +94,15 @@ def set_up_pipeline_parameters(
     Dict
         Dictionary with the combined parameters
     """
+
     default_config["fused_folder"] = os.path.abspath(
         f"{pipeline_config['quantification']['fused_folder']}"
     )
 
     # Added to handle registration testing
-    s3_path = pipeline_config["stitching"].get("s3_path", f"s3://aind-open-data/{smartspim_dataset_name}")
+    s3_path = pipeline_config["stitching"].get(
+        "s3_path", f"s3://aind-open-data/{smartspim_dataset_name}"
+    )
 
     if "test" in s3_path:
         s3_seg_path = s3_path.replace("test", "stitched")
@@ -112,9 +115,6 @@ def set_up_pipeline_parameters(
     default_config["save_path"] = os.path.abspath(
         f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}"
     )
-    default_config["input_params"]["downsample_res"] = pipeline_config["registration"][
-        "input_scale"
-    ]
 
     if default_config["input_params"]["mode"] == "detect":
         default_config["input_params"][
@@ -159,6 +159,67 @@ def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
             missing_inputs.append(str(required_input_element))
 
     return missing_inputs
+
+
+def get_estimated_downsample(
+    voxel_resolution: List[float], registration_res: Tuple[float] = (16.0, 14.4, 14.4)
+) -> int:
+    """
+    Get the estimated multiscale based on the provided
+    voxel resolution. This is used for image stitching.
+
+    e.g., if the original resolution is (1.8. 1.8, 2.0)
+    in XYZ order, and you provide (3.6, 3.6, 4.0) as
+    image resolution, then the picked resolution will be
+    1.
+
+    Parameters
+    ----------
+    voxel_resolution: List[float]
+        Image original resolution. This would be the resolution
+        in the multiscale "0".
+    registration_res: Tuple[float]
+        Approximated resolution that was used for registration
+        in the computation of the transforms. Default: (16.0, 14.4, 14.4)
+    """
+
+    downsample_versions = []
+    for idx in range(len(voxel_resolution)):
+        downsample_versions.append(
+            registration_res[idx] // float(voxel_resolution[idx])
+        )
+
+    downsample_res = int(min(downsample_versions) - 1)
+    return downsample_res
+
+
+def get_zarr_metadata(zarr_path):
+    """
+    Opens a ZARR file and retrieves its metadata.
+
+    Parameters
+    ----------
+    zarr_path : str
+        file path to zarr file.
+
+    Returns
+    -------
+    image_node : ome_zarr.reader.Node
+        The image node of the ZARR file.
+    zarr_meta : dict
+        Metadata of the ZARR file.
+    """
+
+    store = zarr.DirectoryStore(zarr_path)
+    reader = Reader(store)
+
+    # nodes may include images, labels etc
+    nodes = list(reader())
+
+    # first node will be the image pixel data
+    image_node = nodes[0]
+    zarr_meta = image_node.metadata
+    return image_node, zarr_meta
 
 
 def run():
@@ -240,10 +301,10 @@ def run():
         # add paths to template_to_ccf transforms
         default_config["input_params"]["ccf_transforms"] = [
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_0GenericAffine.mat"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
             ),
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/syn_1InverseWarp.nii.gz"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1InverseWarp.nii.gz"
             ),
         ]
 
@@ -302,21 +363,32 @@ def run():
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
 
-        default_config["input_params"]["orientation"] = acquisition_configs["axes"]
-
-        # TODO dont hard code this
-        default_config["input_params"]["scaling"] = [16 / 25, 14.4 / 25, 14.4 / 25]
-        default_config["reverse_scaling"] = [25 / 16, 25 / 14.4, 25 / 14.4]
+        # get scaling paramaters of image for registering points
 
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
             pipeline_config=pipeline_config,
             default_config=default_config,
-            smartspim_dataset_name=smartspim_dataset_name
+            smartspim_dataset_name=smartspim_dataset_name,
         )
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
+
+        # get zarr resolution
+        zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
+        zarr_attrs = utils.read_json_as_dict(zarr_attrs)
+        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
+            "coordinateTransformations"
+        ][0]["scale"][2:]
+        reg_scale = get_estimated_downsample(acquisition_res)
+        reg_res = [float(res) / reg_scale for res in acquisition_res]
+
+        smartspim_config["input_params"]["downsample_res"] = reg_scale
+        smartspim_config["input_params"]["scaling"] = [
+            res / ccf_res_microns for res in reg_res
+        ]
+        smartspim_config["reverse_scaling"] = [ccf_res_microns / res for res in reg_res]
 
         quantification.main(
             data_folder=Path(data_folder),
