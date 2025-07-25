@@ -8,13 +8,13 @@ import sys
 from glob import glob
 from pathlib import Path
 from typing import List, Tuple
-import zarr
-from ome_zarr.reader import Reader
 
+import zarr
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
 from aind_smartspim_quantification.utils import utils
+from ome_zarr.reader import Reader
 
 
 def get_data_config(
@@ -65,9 +65,7 @@ def get_data_config(
 
 
 def set_up_pipeline_parameters(
-    pipeline_config: dict,
-    default_config: dict,
-    smartspim_dataset_name: str
+    pipeline_config: dict, default_config: dict, smartspim_dataset_name: str
 ):
     """
     Sets up smartspim stitching parameters that come from the
@@ -102,7 +100,9 @@ def set_up_pipeline_parameters(
     )
 
     # Added to handle registration testing
-    s3_path = pipeline_config["stitching"].get("s3_path", f"s3://aind-open-data/{smartspim_dataset_name}")
+    s3_path = pipeline_config["stitching"].get(
+        "s3_path", f"s3://aind-open-data/{smartspim_dataset_name}"
+    )
 
     if "test" in s3_path:
         s3_seg_path = s3_path.replace("test", "stitched")
@@ -160,6 +160,7 @@ def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
 
     return missing_inputs
 
+
 def get_estimated_downsample(
     voxel_resolution: List[float], registration_res: Tuple[float] = (16.0, 14.4, 14.4)
 ) -> int:
@@ -184,10 +185,13 @@ def get_estimated_downsample(
 
     downsample_versions = []
     for idx in range(len(voxel_resolution)):
-        downsample_versions.append(registration_res[idx] // float(voxel_resolution[idx]))
+        downsample_versions.append(
+            registration_res[idx] // float(voxel_resolution[idx])
+        )
 
     downsample_res = int(min(downsample_versions) - 1)
     return downsample_res
+
 
 def get_zarr_metadata(zarr_path):
     """
@@ -216,6 +220,7 @@ def get_zarr_metadata(zarr_path):
     image_node = nodes[0]
     zarr_meta = image_node.metadata
     return image_node, zarr_meta
+
 
 def run():
     """
@@ -357,30 +362,33 @@ def run():
 
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
-        
-        # get scaling paramaters of image for registering points
 
+        # get scaling paramaters of image for registering points
 
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
             pipeline_config=pipeline_config,
             default_config=default_config,
-            smartspim_dataset_name=smartspim_dataset_name
+            smartspim_dataset_name=smartspim_dataset_name,
         )
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
 
-        #get zarr resolution
+        # get zarr resolution
         zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
         zarr_attrs = utils.read_json_as_dict(zarr_attrs)
-        acquisition_res = zarr_attrs['multiscales'][0]['datasets'][0]['coordinateTransformations'][0]['scale'][2:]
+        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
+            "coordinateTransformations"
+        ][0]["scale"][2:]
         reg_scale = get_estimated_downsample(acquisition_res)
-        reg_res = [float(res)/reg_scale for res in acquisition_res]
-        
+        reg_res = [float(res) / reg_scale for res in acquisition_res]
+
         smartspim_config["input_params"]["downsample_res"] = reg_scale
-        smartspim_config["input_params"]["scaling"] = [res/ccf_res_microns for res in reg_res]
-        smartspim_config["reverse_scaling"] = [ccf_res_microns/res for res in reg_res]
+        smartspim_config["input_params"]["scaling"] = [
+            res / ccf_res_microns for res in reg_res
+        ]
+        smartspim_config["reverse_scaling"] = [ccf_res_microns / res for res in reg_res]
 
         quantification.main(
             data_folder=Path(data_folder),
