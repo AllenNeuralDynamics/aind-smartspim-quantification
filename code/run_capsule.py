@@ -9,6 +9,7 @@ from glob import glob
 from pathlib import Path
 from typing import List, Tuple
 
+import numpy as np
 import zarr
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
@@ -189,8 +190,8 @@ def get_estimated_downsample(
             registration_res[idx] // float(voxel_resolution[idx])
         )
 
-    downsample_res = int(min(downsample_versions) - 1)
-    return downsample_res
+    downsample_res = int(min(downsample_versions))
+    return round(np.log2(downsample_res))
 
 
 def get_zarr_metadata(zarr_path):
@@ -382,7 +383,7 @@ def run():
             "coordinateTransformations"
         ][0]["scale"][2:]
         reg_scale = get_estimated_downsample(acquisition_res)
-        reg_res = [float(res) / reg_scale for res in acquisition_res]
+        reg_res = [float(res) / 2**reg_scale for res in acquisition_res]
 
         smartspim_config["input_params"]["downsample_res"] = reg_scale
         smartspim_config["input_params"]["scaling"] = [
