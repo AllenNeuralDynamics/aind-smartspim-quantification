@@ -5,12 +5,12 @@ in code ocean
 
 import os
 import sys
-import zarr
-import numpy as np
 from glob import glob
 from pathlib import Path
 from typing import List, Tuple
 
+import numpy as np
+import zarr
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
@@ -163,6 +163,7 @@ def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
 
     return missing_inputs
 
+
 def get_estimated_downsample(
     voxel_resolution: List[float], registration_res: Tuple[float] = (16.0, 14.4, 14.4)
 ) -> int:
@@ -223,6 +224,7 @@ def get_zarr_metadata(zarr_path):
     zarr_meta = image_node.metadata
     return image_node, zarr_meta
 
+
 def run():
     """
     Main function to execute the smartspim quantification
@@ -282,9 +284,9 @@ def run():
             )
             default_config["input_params"]["mode"] = "detect"
         elif "reprocess" in mode:
-            default_config["cell_segmentation_folder"] = (
-                f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
-            )
+            default_config[
+                "cell_segmentation_folder"
+            ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
             default_config["input_params"]["mode"] = "reprocess"
         else:
             raise NotImplementedError(f"The mode {mode} has not been implemented")
@@ -364,7 +366,6 @@ def run():
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
 
-
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
             pipeline_config=pipeline_config,
@@ -374,8 +375,8 @@ def run():
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
-        smartspim_config['input_params']['orientation'] = acquisition_configs['axes']
-        
+        smartspim_config["input_params"]["orientation"] = acquisition_configs["axes"]
+
         # get zarr resolution
         zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
         zarr_attrs = utils.read_json_as_dict(zarr_attrs_path)
