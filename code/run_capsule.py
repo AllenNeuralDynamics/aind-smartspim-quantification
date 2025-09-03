@@ -115,9 +115,6 @@ def set_up_pipeline_parameters(
     default_config["save_path"] = os.path.abspath(
         f"{pipeline_config['quantification']['save_path']}/quant_{pipeline_config['quantification']['channel']}"
     )
-    default_config["input_params"]["downsample_res"] = pipeline_config["registration"][
-        "input_scale"
-    ]
 
     if default_config["input_params"]["mode"] == "detect":
         default_config["input_params"][
