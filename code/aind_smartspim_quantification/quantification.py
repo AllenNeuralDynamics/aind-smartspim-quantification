@@ -794,7 +794,7 @@ def main(
     )
 
     image_path = os.path.abspath(
-        f"{smartspim_config['fused_folder']}/{smartspim_config['registration_channel']}.zarr/3/"
+        f"{smartspim_config['fused_folder']}/{smartspim_config['registration_channel']}.zarr/{smartspim_config['input_params']['downsample_res']}/"
     )
 
     registered_zarr = os.path.abspath(

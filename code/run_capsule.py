@@ -95,6 +95,7 @@ def set_up_pipeline_parameters(
     Dict
         Dictionary with the combined parameters
     """
+
     default_config["fused_folder"] = os.path.abspath(
         f"{pipeline_config['quantification']['fused_folder']}"
     )
@@ -191,7 +192,6 @@ def get_estimated_downsample(
 
     downsample_res = int(min(downsample_versions))
     return round(np.log2(downsample_res))
-
 
 def get_zarr_metadata(zarr_path):
     """
@@ -382,6 +382,21 @@ def run():
         ][0]["scale"][2:]
         reg_scale = get_estimated_downsample(acquisition_res)
         reg_res = [float(res) * 2**reg_scale for res in acquisition_res]
+
+        smartspim_config["input_params"]["downsample_res"] = reg_scale
+        smartspim_config["input_params"]["scaling"] = [
+            res / ccf_res_microns for res in reg_res
+        ]
+        smartspim_config["reverse_scaling"] = [ccf_res_microns / res for res in reg_res]
+
+        # get zarr resolution
+        zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
+        zarr_attrs = utils.read_json_as_dict(zarr_attrs)
+        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
+            "coordinateTransformations"
+        ][0]["scale"][2:]
+        reg_scale = get_estimated_downsample(acquisition_res)
+        reg_res = [float(res) / reg_scale for res in acquisition_res]
 
         smartspim_config["input_params"]["downsample_res"] = reg_scale
         smartspim_config["input_params"]["scaling"] = [
