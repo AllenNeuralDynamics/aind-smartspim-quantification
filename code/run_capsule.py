@@ -389,21 +389,6 @@ def run():
         ]
         smartspim_config["reverse_scaling"] = [ccf_res_microns / res for res in reg_res]
 
-        # get zarr resolution
-        zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
-        zarr_attrs = utils.read_json_as_dict(zarr_attrs)
-        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
-            "coordinateTransformations"
-        ][0]["scale"][2:]
-        reg_scale = get_estimated_downsample(acquisition_res)
-        reg_res = [float(res) / reg_scale for res in acquisition_res]
-
-        smartspim_config["input_params"]["downsample_res"] = reg_scale
-        smartspim_config["input_params"]["scaling"] = [
-            res / ccf_res_microns for res in reg_res
-        ]
-        smartspim_config["reverse_scaling"] = [ccf_res_microns / res for res in reg_res]
-
         quantification.main(
             data_folder=Path(data_folder),
             output_quantified_folder=Path(results_folder),
