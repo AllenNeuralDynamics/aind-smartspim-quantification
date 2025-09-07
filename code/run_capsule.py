@@ -377,7 +377,7 @@ def run():
 
         # get zarr resolution
         zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
-        zarr_attrs = utils.read_json_as_dict(zarr_attrs)
+        zarr_attrs = utils.read_json_as_dict(zarr_attrs_path)
         acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
             "coordinateTransformations"
         ][0]["scale"][2:]
