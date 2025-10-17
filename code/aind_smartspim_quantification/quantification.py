@@ -24,8 +24,6 @@ import numpy as np
 import pandas as pd
 import xmltodict
 from aind_data_schema.core.processing import DataProcess, ProcessName
-from imlib.cells.cells import Cell
-from imlib.IO.cells import save_cells
 from tqdm import tqdm
 
 from .__init__ import __maintainers__, __pipeline_version__, __version__
@@ -89,7 +87,7 @@ def read_cells_from_xml(
 
 
 def read_cells_from_csv(
-    cell_likelihoods_path: Union[str, "PathLike"],
+    detected_cells_path: Union[str, "PathLike"],
     reg_dims: List[int],
     ds: int,
     orient: str,
@@ -97,7 +95,7 @@ def read_cells_from_csv(
     institute: str,
 ) -> List[tuple]:
     """
-    Imports cell locations from a CSV file of cell likelihoods.
+    Imports cell locations from a CSV file of detected_cells.
 
     Parameters
     -------------
@@ -119,10 +117,10 @@ def read_cells_from_csv(
     np.ndarray
         Array with cell locations scaled and oriented
     """
-    if not Path(cell_likelihoods_path).exists():
-        raise FileNotFoundError(f"Path {cell_likelihoods_path} does not exist.")
+    if not Path(detected_cells_path).exists():
+        raise FileNotFoundError(f"Path {detected_cells_path} does not exist.")
 
-    df = pd.read_csv(cell_likelihoods_path)
+    df = pd.read_csv(detected_cells_path)
 
     cells = []
 
@@ -302,9 +300,43 @@ def create_visualization_folders(save_path: PathLike):
 
     return ccf_cells_precomputed_output, cells_precomputed_output
 
+def get_cell_metrics(
+        cell_likelihoods_path: Union[str, "PathLike"],
+) -> np.array:
+    """
+    
+
+    Parameters
+    ----------
+    cell_likelihoods_path : Union[str, "PathLike"]
+        path to the cell_likelihoods file from classification capsule
+
+    Raises
+    ------
+    FileNotFoundError
+        error if you do not have the file
+
+    Returns
+    -------
+    TYPE
+        the intensity values for cells detected during detection and the ID for
+        cross referenceing outputs from classification and detection
+
+    """
+    
+    if not Path(cell_likelihoods_path).exists():
+        raise FileNotFoundError(f"Path {cell_likelihoods_path} does not exist.")
+
+    df = pd.read_csv(cell_likelihoods_path)
+    df = df.loc[df['Class'] == 1, ['Foreground', 'Background', 'Cell ID']]
+    
+    return df.values
 
 def write_transformed_cells(
-    cell_transformed: list, save_path: PathLike, logger: logging.Logger
+    cell_transformed: np.array, 
+    metrics: np.array,
+    save_path: PathLike, 
+    logger: logging.Logger
 ) -> str:
     """
     Save transformed cell coordinates to xml for napari compatability
@@ -322,17 +354,16 @@ def write_transformed_cells(
     str
         Path to the generated xml
     """
+    
+    #need to swap x and z due to ccf orientation
+    cells_w_metrics = np.hstack((cell_transformed[:, [2, 1,0]], metrics))
 
-    cells = []
+    logger.info("Saving transformed cell locations to csv")
+    cells_df = pd.DataFrame(cells_w_metrics, columns = ['x', 'y', 'z', 'Foreground', 'Background', 'Cell ID'])
 
-    logger.info("Saving transformed cell locations to XML")
-    for coord in tqdm(cell_transformed, total=len(cell_transformed)):
-        coord = [dim if dim > 1 else 1.0 for dim in coord]
-        coord_dict = {"x": coord[2], "y": coord[1], "z": coord[0]}
-        cells.append(Cell(coord_dict, "cell"))
-
-    transformed_cells_path = os.path.join(save_path, "transformed_cells.xml")
-    save_cells(cells, transformed_cells_path)
+    transformed_cells_path = os.path.join(save_path, "transformed_cells.csv")
+    cells_df.to_csv(transformed_cells_path)
+    
     return transformed_cells_path
 
 
@@ -540,23 +571,24 @@ def cell_quantification(
     params_dir = os.path.dirname(os.path.realpath(__file__))
     count = utils.CellCounts(params_dir, reference_microns_ccf)
 
-    # removing cells that are outside the brain
+    # removing cells that are outside the brain and getting metrics
+    metrics = get_cell_metrics(
+        cell_likelihoods_path=detected_cells_csv_path.joinpath("proposals/cell_likelihoods.csv")
+    )
     cells_array = np.array(cells_transformed) * reference_microns_ccf
-    cells_cropped = count.crop_cells(cells_array) / reference_microns_ccf
+    cells_cropped, metrics_cropped = count.crop_cells(cells_array, metrics)
+    cells_cropped /= reference_microns_ccf
 
-    transformed_cropped = []
-    for cell in cells_cropped:
-        transformed_cropped.append(cell)
 
     # Writing CSV
     transformed_cells_path = write_transformed_cells(
-        transformed_cropped, save_path, logger
+        cells_cropped, metrics_cropped, save_path, logger
     )
 
     logger.info("Calculating cell counts per brain region and generating CSV")
 
     # count cells
-    count_df = count.create_counts(transformed_cropped)
+    count_df = count.create_counts(cells_cropped, metrics_cropped)
     metadata_df = pd.read_csv(
         os.path.join(params_dir, "params/region_metadata.csv"), index_col=0
     )

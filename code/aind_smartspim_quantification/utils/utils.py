@@ -40,7 +40,7 @@ if not ray.is_initialized():
 
 
 @ray.remote
-def parallel_func(shared_coords, shared_path, struct, struct_tup):
+def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup):
     """
     Function to run multiprocess counting across regions
 
@@ -72,7 +72,14 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
         )
 
         region = vedo.Mesh([vertices, faces])
-        locations = region.inside_points(shared_coords).points()
+        location_idx = region.inside_points(
+            pts=shared_coords,
+            return_ids=True
+        )
+        
+        locations = shared_coords[location_idx, :]
+        mets = shared_metrics[location_idx, :2]
+        
         count = len(locations)
 
         # volume is in um**3 and density in cells/um**3
@@ -82,6 +89,7 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
         if struct_tup[1] == "hemi":
             L_count = copy.copy(count)
             L_density = copy.copy(count_density)
+            L_mets = copy.copy(mets)
 
             vertices_right = copy.copy(vertices)
             vertices_right[:, 0] = (
@@ -89,8 +97,16 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             )
 
             R_region = vedo.Mesh([vertices_right, faces])
-            R_count = len(R_region.inside_points(shared_coords).points())
+            location_idx = R_region.inside_points(
+                pts=shared_coords,
+                return_id=True
+            )
+            
+            locations_r = shared_coords[location_idx, :]
+            
+            R_count = len(locations_r)
             R_density = R_count / region_vol
+            R_mets = shared_metrics[location_idx, :2]
 
             count = L_count + R_count
             count_density = (L_density + R_density) / 2
@@ -99,6 +115,10 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             if count > 0:
                 L_count = len(locations[np.where(locations[:, 0] < 5700)])
                 R_count = len(locations[np.where(locations[:, 0] >= 5700)])
+                
+                L_mets= mets[np.where(locations[:, 0] < 5700)]
+                R_mets = mets[np.where(locations[:, 0] >= 5700)]
+                
                 L_density = L_count / (region_vol / 2)
                 R_density = R_count / (region_vol / 2)
             else:
@@ -115,6 +135,12 @@ def parallel_func(shared_coords, shared_path, struct, struct_tup):
             L_density,
             R_density,
             count_density,
+            np.mean(L_mets[: 0]),
+            np.mean(R_mets[: 0]),
+            np.mean(mets[: 0]),
+            np.mean(L_mets[: 1]),
+            np.mean(R_mets[: 1]),
+            np.mean(mets[: 1])
         )
 
         return data_out
@@ -230,7 +256,7 @@ class CellCounts:
 
         return info
 
-    def crop_cells(self, cells, factor=0.99):
+    def crop_cells(self, cells, metrics, factor=0.99):
         """
         Removes cells outside and on the boundary of the CCF
 
@@ -258,18 +284,24 @@ class CellCounts:
         verts_scaled = com + factor * (verts - com)
         region_scaled = vedo.Mesh([verts_scaled, faces])
 
-        cells_out = region_scaled.inside_points(cells).points()
+        cell_idx = region_scaled.inside_points(
+            pts=cells,
+            return_ids=True
+        )
 
-        return cells_out
+        return cells[cell_idx, :], metrics[cell_idx, :]
 
-    def create_counts(self, cells):
+    def create_counts(self, cells, metrics):
         """
-        Import list of acronyms of brain regions
+        Import get cell counts per region
 
         Parameters
         ------------------------
-        cells: list
-            list of cell locations after applying registration transformations
+        cells: np.array
+            array of cell locations after applying registration transformations
+            
+        metrics: np.array
+            array of cell fluorescent information for each cell and cell ID
         Returns
         ------------------------
         struct_count: df
@@ -283,11 +315,12 @@ class CellCounts:
         self.get_region_lists()
 
         shared_coords = ray.put(cells)
+        shared_metrics = ray.put(metrics)
         shared_path = ray.put(self.CCF_dir)
 
         results = [
             parallel_func.remote(
-                shared_coords, shared_path, self.annot_map[str(s[0])], s
+                shared_coords, shared_metrics, shared_path, self.annot_map[str(s[0])], s
             )
             for s in self.structs
         ]
@@ -304,6 +337,13 @@ class CellCounts:
             "Left_Density",
             "Right_Density",
             "Total_Density",
+            "Left_Foreground",
+            "Right_Foreground",
+            "Total_Foreground",
+            "Left_Background",
+            "Right_Background",
+            "Total_Background",
+            
         ]
         df_out = pd.DataFrame(data_out, columns=cols)
         return df_out
