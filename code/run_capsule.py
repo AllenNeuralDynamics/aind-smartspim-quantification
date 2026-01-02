@@ -9,6 +9,7 @@ from glob import glob
 from pathlib import Path
 from typing import List, Tuple
 
+import numpy as np
 import zarr
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
@@ -189,9 +190,8 @@ def get_estimated_downsample(
             registration_res[idx] // float(voxel_resolution[idx])
         )
 
-    downsample_res = int(min(downsample_versions) - 1)
-    return downsample_res
-
+    downsample_res = int(min(downsample_versions))
+    return round(np.log2(downsample_res))
 
 def get_zarr_metadata(zarr_path):
     """
@@ -301,10 +301,10 @@ def run():
         # add paths to template_to_ccf transforms
         default_config["input_params"]["ccf_transforms"] = [
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine_25.mat"
             ),
             os.path.abspath(
-                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1InverseWarp.nii.gz"
+                f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1InverseWarp_25.nii.gz"
             ),
         ]
 
@@ -322,10 +322,10 @@ def run():
             ],
             "ccf_transforms": [
                 os.path.abspath(
-                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp.nii.gz"
+                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_1Warp_25.nii.gz"
                 ),
                 os.path.abspath(
-                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine.mat"
+                    f"{data_folder}/lightsheet_template_ccf_registration/spim_template_to_ccf_syn_0GenericAffine_25.mat"
                 ),
             ],
         }
@@ -363,8 +363,6 @@ def run():
         print("Pipeline config: ", pipeline_config)
         print("Data folder contents: ", os.listdir(data_folder))
 
-        # get scaling paramaters of image for registering points
-
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
             pipeline_config=pipeline_config,
@@ -374,15 +372,16 @@ def run():
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
+        smartspim_config["input_params"]["orientation"] = acquisition_configs["axes"]
 
         # get zarr resolution
         zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
-        zarr_attrs = utils.read_json_as_dict(zarr_attrs)
+        zarr_attrs = utils.read_json_as_dict(zarr_attrs_path)
         acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
             "coordinateTransformations"
         ][0]["scale"][2:]
         reg_scale = get_estimated_downsample(acquisition_res)
-        reg_res = [float(res) / reg_scale for res in acquisition_res]
+        reg_res = [float(res) * 2**reg_scale for res in acquisition_res]
 
         smartspim_config["input_params"]["downsample_res"] = reg_scale
         smartspim_config["input_params"]["scaling"] = [
