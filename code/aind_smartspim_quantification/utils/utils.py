@@ -135,12 +135,12 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             L_density,
             R_density,
             count_density,
-            np.mean(L_mets[: 0]),
-            np.mean(R_mets[: 0]),
-            np.mean(mets[: 0]),
-            np.mean(L_mets[: 1]),
-            np.mean(R_mets[: 1]),
-            np.mean(mets[: 1])
+            np.median(L_mets[: 0]),
+            np.median(R_mets[: 0]),
+            np.median(mets[: 0]),
+            np.median(L_mets[: 1]),
+            np.median(R_mets[: 1]),
+            np.median(mets[: 1])
         )
 
         return data_out
