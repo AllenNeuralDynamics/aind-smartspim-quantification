@@ -99,7 +99,7 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             R_region = vedo.Mesh([vertices_right, faces])
             location_idx = R_region.inside_points(
                 pts=shared_coords,
-                return_id=True
+                return_ids=True
             )
             
             locations_r = shared_coords[location_idx, :]
@@ -113,16 +113,20 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
 
         else:
             if count > 0:
-                L_count = len(locations[np.where(locations[:, 0] < 5700)])
-                R_count = len(locations[np.where(locations[:, 0] >= 5700)])
-                
-                L_mets= mets[np.where(locations[:, 0] < 5700)]
-                R_mets = mets[np.where(locations[:, 0] >= 5700)]
+                L_mask = locations[:, 0] < 5700
+                L_count = np.sum(L_mask)
+                L_mets = mets[L_mask]
+
+                R_mask = locations[:, 0] >= 5700
+                R_count = np.sum(R_mask)
+                R_mets = mets[R_mask]
                 
                 L_density = L_count / (region_vol / 2)
                 R_density = R_count / (region_vol / 2)
             else:
                 L_count, R_count, L_density, R_density = 0, 0, 0, 0
+                L_mets = np.array([]).reshape(0, 2)
+                R_mets = np.array([]).reshape(0, 2)
 
         data_out = (
             struct_tup[0],
@@ -135,12 +139,12 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             L_density,
             R_density,
             count_density,
-            np.median(L_mets[: 0]),
-            np.median(R_mets[: 0]),
-            np.median(mets[: 0]),
-            np.median(L_mets[: 1]),
-            np.median(R_mets[: 1]),
-            np.median(mets[: 1])
+            np.nanmedian(L_mets[: 0]),
+            np.nanmedian(R_mets[: 0]),
+            np.nanmedian(mets[: 0]),
+            np.nanmedian(L_mets[: 1]),
+            np.nanmedian(R_mets[: 1]),
+            np.nanmedian(mets[: 1])
         )
 
         return data_out
@@ -337,12 +341,12 @@ class CellCounts:
             "Left_Density",
             "Right_Density",
             "Total_Density",
-            "Left_Foreground",
-            "Right_Foreground",
-            "Total_Foreground",
-            "Left_Background",
-            "Right_Background",
-            "Total_Background",
+            "Left_Median_Foreground",
+            "Right_Median_Foreground",
+            "Total_Median_Foreground",
+            "Left_Median_Background",
+            "Right_Median_Background",
+            "Total_Median_Background",
             
         ]
         df_out = pd.DataFrame(data_out, columns=cols)

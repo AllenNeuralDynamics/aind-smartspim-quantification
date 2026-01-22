@@ -1,5 +1,5 @@
 metadata_version: 1
-name: aind-smartspim-cell-quantification-1.6.3
+name: aind-smartspim-cell-quantification-1.7.0
 description: A tool for quantifing cells using the Allen CCF Atlas
 tags:
 - SmartSPIM

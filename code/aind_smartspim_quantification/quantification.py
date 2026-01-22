@@ -339,7 +339,7 @@ def write_transformed_cells(
     logger: logging.Logger
 ) -> str:
     """
-    Save transformed cell coordinates to xml for napari compatability
+    Save transformed cell coordinates to csv for napari compatability
 
     Parameters
     -------------
@@ -388,7 +388,7 @@ def generate_neuroglancer_link(
         location of ccf reference file with region acronyms and
         ID pairings
     transformed_cells_path : PathLike
-        location of .xml file that has cells transformed into
+        location of .csv file that has cells transformed into
         ccf space
     ccf_cells_precomputed_output : PathLike
         location to save the precomputed ccf segmenation layer
@@ -414,8 +414,9 @@ def generate_neuroglancer_link(
     image_path = f"{smartspim_config['ccf_registration_folder']}/OMEZarr/image.zarr"
     dynamic_range = gcc.calculate_dynamic_range(image_path=image_path)
 
-    cells_from_xml = gcc.get_points_from_xml(transformed_cells_path)
-    cells_df = pd.DataFrame(cells_from_xml)
+    #cells_from_xml = gcc.get_points_from_xml(transformed_cells_path)
+    #cells_df = pd.DataFrame(cells_from_xml)
+    cells_df = pd.read_csv(transformed_cells_path, index_col=0)
 
     neuroglancer_link = gcc.generate_25_um_ccf_cells(
         cells_df=cells_df,
@@ -528,7 +529,7 @@ def cell_quantification(
     orient = utils.get_orientation(orientation)
 
     raw_cells = read_cells_from_csv(
-        cell_likelihoods_path=detected_cells_csv_path.joinpath("detected_cells.csv"),
+        detected_cells_path=detected_cells_csv_path.joinpath("detected_cells.csv"),
         reg_dims=reg_dims,
         ds=ds,
         orient=orient,

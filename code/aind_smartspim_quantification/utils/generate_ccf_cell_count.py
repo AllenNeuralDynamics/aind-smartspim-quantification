@@ -27,8 +27,8 @@ PathLike = Union[str, Path]
 
 def get_ccf(
     out_path: str,
-    bucket_name: Optional[str] = "tissuecyte-visualizations",
-    s3_folder: Optional[str] = "data/221205/ccf_annotations/",
+    bucket_name: Optional[str] = "aind-scratch-data",
+    s3_folder: Optional[str] = "SmartSPIM_CCF_precomputed/ccf_precomputed",
 ):
     """
     Parameters
