@@ -1,6 +1,6 @@
 """Quantification for SmartSPIM pipeline"""
 
-__version__ = "1.6.3"
+__version__ = "1.7.0"
 __authors__ = ["Nicholas Lusk", "Camilo Laiton"]
 __author_emails__ = [
     "nicholas.lusk@alleninstitute.org",

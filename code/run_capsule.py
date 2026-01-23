@@ -193,6 +193,7 @@ def get_estimated_downsample(
     downsample_res = int(min(downsample_versions))
     return round(np.log2(downsample_res))
 
+
 def get_zarr_metadata(zarr_path):
     """
     Opens a ZARR file and retrieves its metadata.
