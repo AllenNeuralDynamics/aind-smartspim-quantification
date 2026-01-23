@@ -109,6 +109,7 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             R_mets = shared_metrics[location_idx, :2]
 
             count = L_count + R_count
+            mets = np.vstack((L_mets, R_mets))
             count_density = (L_density + R_density) / 2
 
         else:
@@ -139,12 +140,12 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             L_density,
             R_density,
             count_density,
-            np.nanmedian(L_mets[: 0]),
-            np.nanmedian(R_mets[: 0]),
-            np.nanmedian(mets[: 0]),
-            np.nanmedian(L_mets[: 1]),
-            np.nanmedian(R_mets[: 1]),
-            np.nanmedian(mets[: 1])
+            np.nanmedian(L_mets[:, 0]),
+            np.nanmedian(R_mets[:, 0]),
+            np.nanmedian(mets[:, 0]),
+            np.nanmedian(L_mets[:, 1]),
+            np.nanmedian(R_mets[:, 1]),
+            np.nanmedian(mets[:, 1])
         )
 
         return data_out
