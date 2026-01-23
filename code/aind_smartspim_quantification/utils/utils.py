@@ -72,14 +72,11 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
         )
 
         region = vedo.Mesh([vertices, faces])
-        location_idx = region.inside_points(
-            pts=shared_coords,
-            return_ids=True
-        )
-        
+        location_idx = region.inside_points(pts=shared_coords, return_ids=True)
+
         locations = shared_coords[location_idx, :]
         mets = shared_metrics[location_idx, :2]
-        
+
         count = len(locations)
 
         # volume is in um**3 and density in cells/um**3
@@ -97,13 +94,10 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             )
 
             R_region = vedo.Mesh([vertices_right, faces])
-            location_idx = R_region.inside_points(
-                pts=shared_coords,
-                return_ids=True
-            )
-            
+            location_idx = R_region.inside_points(pts=shared_coords, return_ids=True)
+
             locations_r = shared_coords[location_idx, :]
-            
+
             R_count = len(locations_r)
             R_density = R_count / region_vol
             R_mets = shared_metrics[location_idx, :2]
@@ -121,7 +115,7 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
                 R_mask = locations[:, 0] >= 5700
                 R_count = np.sum(R_mask)
                 R_mets = mets[R_mask]
-                
+
                 L_density = L_count / (region_vol / 2)
                 R_density = R_count / (region_vol / 2)
             else:
@@ -145,7 +139,7 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             np.nanmedian(mets[:, 0]),
             np.nanmedian(L_mets[:, 1]),
             np.nanmedian(R_mets[:, 1]),
-            np.nanmedian(mets[:, 1])
+            np.nanmedian(mets[:, 1]),
         )
 
         return data_out
@@ -289,10 +283,7 @@ class CellCounts:
         verts_scaled = com + factor * (verts - com)
         region_scaled = vedo.Mesh([verts_scaled, faces])
 
-        cell_idx = region_scaled.inside_points(
-            pts=cells,
-            return_ids=True
-        )
+        cell_idx = region_scaled.inside_points(pts=cells, return_ids=True)
 
         return cells[cell_idx, :], metrics[cell_idx, :]
 
@@ -304,7 +295,7 @@ class CellCounts:
         ------------------------
         cells: np.array
             array of cell locations after applying registration transformations
-            
+
         metrics: np.array
             array of cell fluorescent information for each cell and cell ID
         Returns
@@ -348,7 +339,6 @@ class CellCounts:
             "Left_Median_Background",
             "Right_Median_Background",
             "Total_Median_Background",
-            
         ]
         df_out = pd.DataFrame(data_out, columns=cols)
         return df_out

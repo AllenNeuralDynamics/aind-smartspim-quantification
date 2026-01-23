@@ -300,11 +300,12 @@ def create_visualization_folders(save_path: PathLike):
 
     return ccf_cells_precomputed_output, cells_precomputed_output
 
+
 def get_cell_metrics(
-        cell_likelihoods_path: Union[str, "PathLike"],
+    cell_likelihoods_path: Union[str, "PathLike"],
 ) -> np.array:
     """
-    
+
 
     Parameters
     ----------
@@ -323,20 +324,21 @@ def get_cell_metrics(
         cross referenceing outputs from classification and detection
 
     """
-    
+
     if not Path(cell_likelihoods_path).exists():
         raise FileNotFoundError(f"Path {cell_likelihoods_path} does not exist.")
 
     df = pd.read_csv(cell_likelihoods_path)
-    df = df.loc[df['Class'] == 1, ['Foreground', 'Background', 'Cell ID']]
-    
+    df = df.loc[df["Class"] == 1, ["Foreground", "Background", "Cell ID"]]
+
     return df.values
 
+
 def write_transformed_cells(
-    cell_transformed: np.array, 
+    cell_transformed: np.array,
     metrics: np.array,
-    save_path: PathLike, 
-    logger: logging.Logger
+    save_path: PathLike,
+    logger: logging.Logger,
 ) -> str:
     """
     Save transformed cell coordinates to csv for napari compatability
@@ -354,16 +356,18 @@ def write_transformed_cells(
     str
         Path to the generated xml
     """
-    
-    #need to swap x and z due to ccf orientation
-    cells_w_metrics = np.hstack((cell_transformed[:, [2, 1,0]], metrics))
+
+    # need to swap x and z due to ccf orientation
+    cells_w_metrics = np.hstack((cell_transformed[:, [2, 1, 0]], metrics))
 
     logger.info("Saving transformed cell locations to csv")
-    cells_df = pd.DataFrame(cells_w_metrics, columns = ['x', 'y', 'z', 'Foreground', 'Background', 'Cell ID'])
+    cells_df = pd.DataFrame(
+        cells_w_metrics, columns=["x", "y", "z", "Foreground", "Background", "Cell ID"]
+    )
 
     transformed_cells_path = os.path.join(save_path, "transformed_cells.csv")
     cells_df.to_csv(transformed_cells_path)
-    
+
     return transformed_cells_path
 
 
@@ -414,8 +418,8 @@ def generate_neuroglancer_link(
     image_path = f"{smartspim_config['ccf_registration_folder']}/OMEZarr/image.zarr"
     dynamic_range = gcc.calculate_dynamic_range(image_path=image_path)
 
-    #cells_from_xml = gcc.get_points_from_xml(transformed_cells_path)
-    #cells_df = pd.DataFrame(cells_from_xml)
+    # cells_from_xml = gcc.get_points_from_xml(transformed_cells_path)
+    # cells_df = pd.DataFrame(cells_from_xml)
     cells_df = pd.read_csv(transformed_cells_path, index_col=0)
 
     neuroglancer_link = gcc.generate_25_um_ccf_cells(
@@ -574,12 +578,13 @@ def cell_quantification(
 
     # removing cells that are outside the brain and getting metrics
     metrics = get_cell_metrics(
-        cell_likelihoods_path=detected_cells_csv_path.joinpath("proposals/cell_likelihoods.csv")
+        cell_likelihoods_path=detected_cells_csv_path.joinpath(
+            "proposals/cell_likelihoods.csv"
+        )
     )
     cells_array = np.array(cells_transformed) * reference_microns_ccf
     cells_cropped, metrics_cropped = count.crop_cells(cells_array, metrics)
     cells_cropped /= reference_microns_ccf
-
 
     # Writing CSV
     transformed_cells_path = write_transformed_cells(
