@@ -19,5 +19,5 @@ __maintainer_emails__ = [
     "camilo.laiton@alleninstitute.org",
 ]
 __title__ = "aind-smartspim-quantification"
-__status__ = "Beta"  # 'Development' 'Production', 'Beta'
+__status__ = "Production"  # 'Development' 'Production', 'Beta'
 __pipeline_version__ = "4.0.0"
