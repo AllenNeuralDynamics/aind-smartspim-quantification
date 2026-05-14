@@ -24,9 +24,9 @@ The `cell_count_by_region.csv` file contains the number of cells in each region 
 `Total`: Total number of cells identified within a region  
 `Left_Density`: Density of cells (cells/voxel) identified in the left hemisphere of a region  
 `Right_Density`: Density of cells (cells/voxel) identified in the right hemisphere of a region  
-`Total_Density`: Dotal density of cells (cells/voxel) identified within a region  
+`Total_Density`: Total density of cells (cells/voxel) identified within a region  
 
-The `transformed_cells.xml` contains cell coordinates in CCF space:
+The `transformed_cells.csv` contains cell coordinates in CCF space:
 
 `x`: location in the Anterior-Posterior axis  
 `y`: location in the Dorsal-Ventral axis  
