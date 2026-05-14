@@ -36,7 +36,8 @@ from .._shared.types import PathLike
 
 # initialize for multiprocessing
 if not ray.is_initialized():
-    ray.init(ignore_reinit_error=True, _plasma_directory=os.path.abspath("../scratch/"))
+    _ray_kwargs = {"_plasma_directory": "/scratch/"} if os.path.isdir("/scratch/") else {}
+    ray.init(ignore_reinit_error=True, **_ray_kwargs)
 
 
 @ray.remote

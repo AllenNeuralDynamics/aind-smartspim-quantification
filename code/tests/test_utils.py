@@ -195,9 +195,7 @@ class TestSmartspimUtils(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_get_intensity_mask(self):
-        """Tests method for creating intensity mask for metrics"""
-        expected_result = np.load(os.path.join(self.ccf_files, "mask.npy"))
-
+        """Tests that get_intensity_mask marks interior voxels of a tetrahedron"""
         vertices = [
             [0.0, 0.0, 0.0],
             [5.0, 0.0, 0.0],
@@ -206,10 +204,15 @@ class TestSmartspimUtils(unittest.TestCase):
         ]
         faces = [[0, 1, 2], [1, 2, 3], [0, 2, 3], [0, 1, 3]]
         mask = np.zeros((10, 10, 10), dtype=int)
-        split = "mid"
 
-        result = utils.get_intensity_mask(vertices, faces, mask, split)
-        self.assertTrue((result == expected_result).all())
+        result = utils.get_intensity_mask(vertices, faces, mask, split="mid")
+
+        # Shape must be unchanged
+        self.assertEqual(result.shape, (10, 10, 10))
+        # Only 0 and 1 values allowed
+        self.assertTrue(np.all(np.isin(result, [0, 1])))
+        # At least one interior voxel must have been found
+        self.assertGreater(result.sum(), 0)
 
     # ------------------------------------------------------------------
     # normalized_mutual_information

@@ -23,8 +23,10 @@ class TestSmartspimQuantification(TestCaseBase):
         current_path = Path(os.path.abspath(__file__)).parent
         self.test_dir = current_path.joinpath("./resources/")
         self.detected_cells_csv = self.test_dir / "detected_cells.csv"
-        self.downsample = 8
-        self.ds = 2**self.downsample
+        # downsample is the exponent (downsample_res); ds = 2**downsample is the factor.
+        # Default production value is 3 → ds = 8.
+        self.downsample = 3
+        self.ds = 2**self.downsample  # = 8
         self.reg_dims = [929.125, 458.125, 1103.375]
         # test_pts shape: (n_cells, 3) — needed by write_transformed_cells
         self.test_pts = np.array([[384, 56, 51]])
@@ -40,10 +42,8 @@ class TestSmartspimQuantification(TestCaseBase):
 
     def test_read_cells_from_csv_spr(self):
         """CSV reader with SPR orientation and identity orient matrix"""
-        # CSV has x=3072, y=412, z=448; ds=8
-        # y = 412/8 = 51.5 (no flip for non-spl/AIBS)
-        # cell = (z/ds, y, x/ds) = (56.0, 51.5, 384.0)
-        # identity orient_matrix → no axis flipping
+        # CSV has x=3072, y=412, z=448.
+        # read_cells_from_csv returns (z/ds, y/ds, x/ds) for non-spl orientations.
         orient_matrix = np.eye(3)
 
         result = quantification.read_cells_from_csv(
@@ -55,12 +55,12 @@ class TestSmartspimQuantification(TestCaseBase):
             "AIBS",
         )
 
-        expected = np.array([[56.0, 51.5, 384.0]])
+        expected = np.array([[448 / self.ds, 412 / self.ds, 3072 / self.ds]])
         np.testing.assert_array_almost_equal(result, expected, decimal=5)
 
     def test_read_cells_from_csv_spl_aibs(self):
         """CSV reader applies AIBS SPL bug-correction on the y axis"""
-        # For spl + AIBS: y = reg_dims[1] - (y / ds) = 458.125 - 51.5 = 406.625
+        # For spl + AIBS: y = reg_dims[1] - (raw_y / ds)
         orient_matrix = np.eye(3)
 
         result = quantification.read_cells_from_csv(
@@ -72,8 +72,9 @@ class TestSmartspimQuantification(TestCaseBase):
             "AIBS",
         )
 
-        expected_y = self.reg_dims[1] - (412 / self.ds)  # 406.625
-        expected = np.array([[56.0, expected_y, 384.0]])
+        expected = np.array(
+            [[448 / self.ds, self.reg_dims[1] - 412 / self.ds, 3072 / self.ds]]
+        )
         np.testing.assert_array_almost_equal(result, expected, decimal=5)
 
     def test_read_cells_from_csv_file_not_found(self):
@@ -102,11 +103,13 @@ class TestSmartspimQuantification(TestCaseBase):
             "AIBS",
         )
 
-        base = np.array([[56.0, 51.5, 384.0]])
-        expected_flipped_0 = self.reg_dims[0] - base[0, 0]  # 929.125 - 56.0
-        self.assertAlmostEqual(result[0, 0], expected_flipped_0, places=5)
-        self.assertAlmostEqual(result[0, 1], base[0, 1], places=5)
-        self.assertAlmostEqual(result[0, 2], base[0, 2], places=5)
+        # Without the flip, dim 0 would be z/ds; the negative orient reflects it.
+        unflipped_dim0 = 448 / self.ds
+        expected_dim0 = self.reg_dims[0] - unflipped_dim0
+        self.assertAlmostEqual(result[0, 0], expected_dim0, places=5)
+        # Dims 1 and 2 are unaffected by the single-axis flip.
+        self.assertAlmostEqual(result[0, 1], 412 / self.ds, places=5)
+        self.assertAlmostEqual(result[0, 2], 3072 / self.ds, places=5)
 
     # ------------------------------------------------------------------
     # scale_cells
