@@ -1,11 +1,13 @@
 """Tests SmartSPIM Pipeline Quantification"""
 
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
+
 from aind_smartspim_quantification import quantification
 
 
@@ -35,10 +37,6 @@ class TestSmartspimQuantification(TestCaseBase):
 
     def tearDown(self):
         """Tearing down unit test"""
-
-    # ------------------------------------------------------------------
-    # read_cells_from_csv
-    # ------------------------------------------------------------------
 
     def test_read_cells_from_csv_spr(self):
         """CSV reader with SPR orientation and identity orient matrix"""
@@ -111,10 +109,6 @@ class TestSmartspimQuantification(TestCaseBase):
         self.assertAlmostEqual(result[0, 1], 412 / self.ds, places=5)
         self.assertAlmostEqual(result[0, 2], 3072 / self.ds, places=5)
 
-    # ------------------------------------------------------------------
-    # scale_cells
-    # ------------------------------------------------------------------
-
     def test_scale_cells_identity(self):
         """scale_cells with scale=[1,1,1] returns unchanged cells"""
         cells = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
@@ -127,10 +121,6 @@ class TestSmartspimQuantification(TestCaseBase):
         result = quantification.scale_cells(cells, [2.0, 3.0, 4.0])
         expected = np.array([[2.0, 6.0, 12.0]])
         np.testing.assert_array_almost_equal(result, expected)
-
-    # ------------------------------------------------------------------
-    # convert_to_ants_space / convert_from_ants_space
-    # ------------------------------------------------------------------
 
     def test_convert_ants_space_roundtrip(self):
         """convert_to then convert_from ANTs space recovers original cells"""
@@ -145,10 +135,6 @@ class TestSmartspimQuantification(TestCaseBase):
         recovered = quantification.convert_from_ants_space(template_params, ants_cells)
         np.testing.assert_array_almost_equal(recovered, cells, decimal=10)
 
-    # ------------------------------------------------------------------
-    # write_transformed_cells
-    # ------------------------------------------------------------------
-
     @patch("logging.Logger")
     def test_write_transformed_cells(self, mock_log):
         """write_transformed_cells saves a CSV and returns the path"""
@@ -160,6 +146,100 @@ class TestSmartspimQuantification(TestCaseBase):
         self.assertTrue(out_path.endswith(".csv"))
 
         os.remove(out_path)
+
+    def test_write_transformed_cells_content(self):
+        """write_transformed_cells CSV has expected column names and row count"""
+        with patch("logging.Logger") as mock_log:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out_path = quantification.write_transformed_cells(
+                    self.test_pts, self.test_metrics, tmpdir, mock_log
+                )
+                import pandas as pd
+
+                df = pd.read_csv(out_path, index_col=0)
+                self.assertListEqual(
+                    list(df.columns),
+                    ["x", "y", "z", "Foreground", "Background", "Cell ID"],
+                )
+                self.assertEqual(len(df), 1)
+
+    def test_read_cells_from_xml_spr(self):
+        """XML reader returns correct coordinates for SPR orientation"""
+        xml_path = self.test_dir / "classified_test_multi.xml"
+        result = quantification.read_cells_from_xml(
+            xml_path,
+            self.reg_dims,
+            self.ds,
+            "spr",
+            np.eye(3),
+            "AIBS",
+        )
+        # Two markers: (3072,412,448) and (1000,200,300); returns (z/ds, y/ds, x/ds)
+        expected = np.array(
+            [
+                [448 / self.ds, 412 / self.ds, 3072 / self.ds],
+                [300 / self.ds, 200 / self.ds, 1000 / self.ds],
+            ]
+        )
+        np.testing.assert_array_almost_equal(result, expected, decimal=5)
+
+    def test_read_cells_from_xml_spl_aibs(self):
+        """XML reader applies AIBS SPL bug-correction on the y axis"""
+        xml_path = self.test_dir / "classified_test_multi.xml"
+        result = quantification.read_cells_from_xml(
+            xml_path,
+            self.reg_dims,
+            self.ds,
+            "spl",
+            np.eye(3),
+            "AIBS",
+        )
+        # y = reg_dims[1] - raw_y/ds for both cells
+        expected = np.array(
+            [
+                [448 / self.ds, self.reg_dims[1] - 412 / self.ds, 3072 / self.ds],
+                [300 / self.ds, self.reg_dims[1] - 200 / self.ds, 1000 / self.ds],
+            ]
+        )
+        np.testing.assert_array_almost_equal(result, expected, decimal=5)
+
+    def test_read_cells_from_xml_file_not_found(self):
+        """read_cells_from_xml raises FileNotFoundError for missing path"""
+        with self.assertRaises(FileNotFoundError):
+            quantification.read_cells_from_xml(
+                self.test_dir / "nonexistent.xml",
+                self.reg_dims,
+                self.ds,
+                "spr",
+                np.eye(3),
+                "AIBS",
+            )
+
+    def test_get_cell_metrics(self):
+        """get_cell_metrics returns foreground/background/cell_id for Class==1 rows"""
+        csv_path = self.test_dir / "cell_likelihoods.csv"
+        result = quantification.get_cell_metrics(csv_path)
+
+        # CSV has 2 Class==1 rows: (0.8, 0.2, 101) and (0.9, 0.1, 102)
+        self.assertEqual(result.shape, (2, 3))
+        np.testing.assert_array_almost_equal(result[0], [0.8, 0.2, 101], decimal=5)
+        np.testing.assert_array_almost_equal(result[1], [0.9, 0.1, 102], decimal=5)
+
+    def test_get_cell_metrics_file_not_found(self):
+        """get_cell_metrics raises FileNotFoundError for missing path"""
+        with self.assertRaises(FileNotFoundError):
+            quantification.get_cell_metrics(self.test_dir / "nonexistent.csv")
+
+    def test_create_visualization_folders(self):
+        """create_visualization_folders creates the expected subdirectory tree"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ccf_path, cells_path = quantification.create_visualization_folders(tmpdir)
+
+            self.assertTrue(os.path.isdir(ccf_path))
+            self.assertTrue(os.path.isdir(cells_path))
+            self.assertTrue(os.path.isdir(os.path.join(tmpdir, "visualization")))
+            self.assertIn("ccf_cell_precomputed", ccf_path)
+            self.assertIn("cell_points_precomputed", cells_path)
 
 
 if __name__ == "__main__":
