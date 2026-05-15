@@ -11,11 +11,12 @@ from typing import List, Tuple
 
 import numpy as np
 import zarr
+from ome_zarr.reader import Reader
+
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
 from aind_smartspim_quantification.utils import utils
-from ome_zarr.reader import Reader
 
 
 def get_data_config(
@@ -282,9 +283,9 @@ def run():
             )
             default_config["input_params"]["mode"] = "detect"
         elif "reprocess" in mode:
-            default_config[
-                "cell_segmentation_folder"
-            ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+            default_config["cell_segmentation_folder"] = (
+                f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+            )
             default_config["input_params"]["mode"] = "reprocess"
         else:
             raise NotImplementedError(f"The mode {mode} has not been implemented")

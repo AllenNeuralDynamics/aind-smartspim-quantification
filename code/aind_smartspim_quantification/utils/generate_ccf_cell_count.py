@@ -450,20 +450,3 @@ def generate_25_um_ccf_cells(
         json.dump(json_state, outfile, indent=2)
 
     return output_path
-
-
-if __name__ == "__main__":
-    params = {
-        "ccf_cells_precomputed": {  # Parameters to generate CCF + Cells precomputed format
-            "input_path": "/Users/camilo.laiton/Downloads/cell_count_by_region.csv",  # Path where the cell_count.csv is located
-            "output_path": "/Users/camilo.laiton/repositories/new_ng_link/aind-ng-link/src/ng_link/scripts/CCF_Cells_Test",  # Path where we want to save the CCF + cell location precomputed
-            "ccf_reference_path": None,  # Path where the CCF reference csv is located
-        },
-        "cells_precomputed": {  # Parameters to generate cell points precomputed format
-            "xml_path": "/Users/camilo.laiton/Downloads/transformed_cells.xml",  # Path where the cell points are located
-            "output_precomputed": "/Users/camilo.laiton/repositories/new_ng_link/aind-ng-link/src/ng_link/scripts/Cells_Test",  # Path where the precomputed format will be stored
-        },
-        "zarr_path": "s3://aind-open-data/SmartSPIM_656374_2023-01-27_12-41-55_stitched_2023-01-31_17-28-34/processed/CCF_Atlas_Registration/Ex_445_Em_469/OMEZarr/image.zarr",  # Path where the 25 um zarr image is stored, output from CCF capsule
-    }
-
-    generate_25_um_ccf_cells(params)
