@@ -11,7 +11,6 @@ from typing import List, Tuple
 
 import numpy as np
 import zarr
-from ome_zarr.reader import Reader
 
 from aind_smartspim_quantification import quantification
 from aind_smartspim_quantification.params.quantification_params import \
@@ -193,35 +192,6 @@ def get_estimated_downsample(
 
     downsample_res = int(min(downsample_versions))
     return round(np.log2(downsample_res))
-
-
-def get_zarr_metadata(zarr_path):
-    """
-    Opens a ZARR file and retrieves its metadata.
-
-    Parameters
-    ----------
-    zarr_path : str
-        file path to zarr file.
-
-    Returns
-    -------
-    image_node : ome_zarr.reader.Node
-        The image node of the ZARR file.
-    zarr_meta : dict
-        Metadata of the ZARR file.
-    """
-
-    store = zarr.DirectoryStore(zarr_path)
-    reader = Reader(store)
-
-    # nodes may include images, labels etc
-    nodes = list(reader())
-
-    # first node will be the image pixel data
-    image_node = nodes[0]
-    zarr_meta = image_node.metadata
-    return image_node, zarr_meta
 
 
 def run():
