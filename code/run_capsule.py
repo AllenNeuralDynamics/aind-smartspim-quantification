@@ -3,19 +3,25 @@ Main file to execute the smartspim segmentation
 in code ocean
 """
 
+import logging
 import os
 import sys
+import time
 from glob import glob
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import zarr
+from schlog import setup_logging
 
-from aind_smartspim_quantification import quantification
+from aind_smartspim_quantification import (__pipeline_name__, __title__,
+                                            __version__, quantification)
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
 from aind_smartspim_quantification.utils import utils
+
+logger = logging.getLogger(__name__)
 
 
 def get_data_config(
@@ -208,6 +214,17 @@ def run():
     mode = str(sys.argv[1:])
     mode = mode.replace("[", "").replace("]", "").casefold()
 
+    process_name = f"{__title__}-{mode}"
+    setup_logging(
+        model={
+            "pipeline_name": __pipeline_name__,
+            "process_name": process_name,
+            "software_name": __title__,
+            "software_version": __version__,
+        }
+    )
+    start_time = time.monotonic()
+
     # It is assumed that these files
     # will be in the data folder
     required_input_elements = []
@@ -225,9 +242,97 @@ def run():
 
     quantification_info = pipeline_config.get("quantification")
 
+    logger.info(
+        "SmartSPIM quantification stage started",
+        extra={
+            "event_type": "stage_start",
+            "dataset_name": smartspim_dataset_name,
+            "data_folder": data_folder,
+            "results_folder": results_folder,
+            "scratch_folder": scratch_folder,
+            "mode": mode,
+        },
+    )
+
+    try:
+        _run_quantification(
+            mode=mode,
+            data_folder=data_folder,
+            results_folder=results_folder,
+            scratch_folder=scratch_folder,
+            pipeline_config=pipeline_config,
+            quantification_info=quantification_info,
+            smartspim_dataset_name=smartspim_dataset_name,
+            institute_abbreviation=institute_abbreviation,
+        )
+    except Exception:
+        duration_seconds = round(time.monotonic() - start_time, 3)
+        logger.error(
+            "SmartSPIM quantification stage failed",
+            exc_info=True,
+            extra={
+                "event_type": "stage_failure",
+                "dataset_name": smartspim_dataset_name,
+                "duration_seconds": duration_seconds,
+            },
+        )
+        raise
+
+    duration_seconds = round(time.monotonic() - start_time, 3)
+    logger.info(
+        "SmartSPIM quantification stage completed",
+        extra={
+            "event_type": "stage_complete",
+            "dataset_name": smartspim_dataset_name,
+            "duration_seconds": duration_seconds,
+        },
+    )
+
+
+def _run_quantification(
+    mode: str,
+    data_folder: str,
+    results_folder: str,
+    scratch_folder: str,
+    pipeline_config: dict,
+    quantification_info: Optional[dict],
+    smartspim_dataset_name: str,
+    institute_abbreviation: str,
+):
+    """
+    Runs the smartspim quantification processing body.
+
+    Parameters
+    -----------
+    mode: str
+        Capsule run mode, either "detect" or "reprocess"
+
+    data_folder: str
+        Absolute path to the Code Ocean data folder
+
+    results_folder: str
+        Absolute path to the Code Ocean results folder
+
+    scratch_folder: str
+        Absolute path to the Code Ocean scratch folder
+
+    pipeline_config: dict
+        Pipeline configuration coming from the processing manifest
+
+    quantification_info: Optional[dict]
+        Quantification section of the pipeline configuration,
+        None if this dataset has no quantification channels
+
+    smartspim_dataset_name: str
+        Name of the smartspim dataset
+
+    institute_abbreviation: str
+        Institution abbreviation for the dataset
+    """
+
     if quantification_info is not None:
-        print("Pipeline config: ", pipeline_config)
-        print("Data folder contents: ", os.listdir(data_folder))
+        logger.debug("Pipeline config: %s", pipeline_config)
+        logger.debug("Data folder contents: %s", os.listdir(data_folder))
 
         # get default configs
         default_config = get_yaml_config(
@@ -332,8 +437,8 @@ def run():
             "gpuMemoryLimit": 1500000000,
         }
 
-        print("Pipeline config: ", pipeline_config)
-        print("Data folder contents: ", os.listdir(data_folder))
+        logger.debug("Pipeline config: %s", pipeline_config)
+        logger.debug("Data folder contents: %s", os.listdir(data_folder))
 
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
@@ -369,7 +474,7 @@ def run():
         )
 
     else:
-        print(f"No quantification channels, pipeline config: {pipeline_config}")
+        logger.info("No quantification channels, pipeline config: %s", pipeline_config)
         utils.save_dict_as_json(
             filename=f"{results_folder}/segmentation_processing_manifest_empty.json",
             dictionary=pipeline_config,
