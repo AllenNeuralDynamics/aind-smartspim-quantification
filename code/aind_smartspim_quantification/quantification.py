@@ -12,6 +12,7 @@ import logging
 import multiprocessing
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Union
 
@@ -20,10 +21,19 @@ import boto3
 import numpy as np
 import pandas as pd
 import xmltodict
-from aind_data_schema.core.processing import DataProcess, ProcessName
+from aind_data_schema.components.identifiers import Code
+from aind_data_schema.core.processing import DataProcess, ProcessStage
+from aind_data_schema_models.process_names import ProcessName
 from tqdm import tqdm
 
-from .__init__ import __maintainers__, __pipeline_version__, __version__
+from .__init__ import (
+    __maintainers__,
+    __pipeline_name__,
+    __pipeline_version__,
+    __title__,
+    __url__,
+    __version__,
+)
 from ._shared.types import PathLike
 from .utils import generate_ccf_cell_count as gcc
 from .utils import utils
@@ -819,7 +829,9 @@ def main(
     profile_process.daemon = True
     profile_process.start()
 
-    start_time = time.time()
+    start_date_time = datetime.now(timezone.utc)
+    resource_monitor = utils.ResourceMonitor(interval_seconds=30).start()
+
     # Calculate cell counts per region
     csv_path, transformed_cells_path = cell_quantification(
         logger=logger,
@@ -875,29 +887,38 @@ def main(
     except Exception as e:
         logger.error("There was a problem generating the neuroglancer link: %s", e)
 
-    end_time = time.time()
+    resource_monitor.stop()
+    end_date_time = datetime.now(timezone.utc)
 
     data_processes.append(
         DataProcess(
-            name=ProcessName.IMAGE_CELL_QUANTIFICATION,
-            software_version=__version__,
-            start_date_time=start_time,
-            end_date_time=end_time,
-            input_location=f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0",
-            output_location=str(output_quantified_folder),
-            outputs={"output_folder": str(output_quantified_folder)},
-            code_url="https://github.com/AllenNeuralDynamics/aind-smartspim-quantification",
-            code_version=__version__,
-            parameters=smartspim_config,
-            notes="The output folder contains the precomputed format to visualize and count cells per CCF region",
+            process_type=ProcessName.IMAGE_CELL_QUANTIFICATION,
+            name=f"Image cell quantification - {smartspim_config['channel_name']}",
+            stage=ProcessStage.PROCESSING,
+            code=Code(url=__url__, name=__title__, version=__version__),
+            experimenters=__maintainers__,
+            pipeline_name=__pipeline_name__,
+            start_date_time=start_date_time,
+            end_date_time=end_date_time,
+            output_path=str(output_quantified_folder),
+            output_parameters={
+                "input_location": f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0",
+                "output_folder": str(output_quantified_folder),
+                "duration_seconds": (end_date_time - start_date_time).total_seconds(),
+            },
+            resources=resource_monitor.to_resource_usage(
+                cpu_cores=int(utils.get_cpu_limit())
+            ),
+            notes="Maps detected cells to Allen CCF V3 Atlas regions.",
         )
     )
 
     utils.generate_processing(
         data_processes=data_processes,
         dest_processing=metadata_folder,
-        processor_full_name=__maintainers__[0],
+        pipeline_name=__pipeline_name__,
         pipeline_version=__pipeline_version__,
+        pipeline_url="https://github.com/AllenNeuralDynamics/aind-smartspim-pipeline",
     )
 
     # Getting tracked resources and plotting image
