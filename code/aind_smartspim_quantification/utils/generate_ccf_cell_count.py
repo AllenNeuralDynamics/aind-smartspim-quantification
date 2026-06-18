@@ -128,7 +128,7 @@ def calculate_dynamic_range(image_path: PathLike, percentile=99, level=3):
     """
 
     img = da.from_zarr(image_path, str(level)).squeeze()
-    range_max = da.percentile(img.flatten(), percentile).compute()[0]
+    range_max = da.percentile(img.flatten(), percentile).compute().item()
     window_max = int(range_max * 1.5)
     dynamic_ranges = [int(range_max), window_max]
 

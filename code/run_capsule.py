@@ -13,7 +13,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import zarr
-from schlog import setup_logging
+from log_schema import setup_logging
 
 from aind_smartspim_quantification import (__pipeline_name__, __title__,
                                             __version__, quantification)
