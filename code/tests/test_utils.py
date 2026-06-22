@@ -476,6 +476,30 @@ class TestSmartspimUtils(unittest.TestCase):
             result = utils.get_memory_limit_bytes()
             self.assertGreater(result, 0)
 
+    def test_resource_monitor_collects_samples(self):
+        """ResourceMonitor collects CPU and RAM samples and produces valid ResourceUsage"""
+        from aind_data_schema.core.processing import ResourceUsage
+
+        monitor = utils.ResourceMonitor(interval_seconds=0.05).start()
+        time.sleep(0.25)
+        monitor.stop()
+        usage = monitor.to_resource_usage(cpu_cores=2)
+        self.assertIsInstance(usage, ResourceUsage)
+        self.assertGreater(len(usage.cpu_usage), 0)
+        self.assertGreater(len(usage.ram_usage), 0)
+        self.assertIsNotNone(usage.ram_unit)
+        self.assertIsNotNone(usage.system_memory)
+
+    def test_resource_monitor_context_manager(self):
+        """ResourceMonitor works as a context manager and stops cleanly"""
+        from aind_data_schema.core.processing import ResourceUsage
+
+        with utils.ResourceMonitor(interval_seconds=0.05) as monitor:
+            time.sleep(0.15)
+        usage = monitor.to_resource_usage()
+        self.assertIsInstance(usage, ResourceUsage)
+        self.assertGreater(len(usage.cpu_usage), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

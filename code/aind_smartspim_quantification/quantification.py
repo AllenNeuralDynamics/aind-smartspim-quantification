@@ -8,13 +8,11 @@ Created on Fri Jan 20 15:55:37 2023
 """
 
 import copy
-import json
 import logging
 import multiprocessing
 import os
-import re
 import time
-from glob import glob
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Union
 
@@ -23,10 +21,19 @@ import boto3
 import numpy as np
 import pandas as pd
 import xmltodict
-from aind_data_schema.core.processing import DataProcess, ProcessName
+from aind_data_schema.components.identifiers import Code
+from aind_data_schema.core.processing import DataProcess, ProcessStage
+from aind_data_schema_models.process_names import ProcessName
 from tqdm import tqdm
 
-from .__init__ import __maintainers__, __pipeline_version__, __version__
+from .__init__ import (
+    __maintainers__,
+    __pipeline_name__,
+    __pipeline_version__,
+    __title__,
+    __url__,
+    __version__,
+)
 from ._shared.types import PathLike
 from .utils import generate_ccf_cell_count as gcc
 from .utils import utils
@@ -511,13 +518,13 @@ def cell_quantification(
     transformed_cells_path: PathLike
         Path to the points in CCF space
     """
-    logger.info(f"input image resolution is {input_res}, and this is considered XZY")
+    logger.debug(f"input image resolution is {input_res}, and this is considered XZY")
 
     # Getting downsample res
     ds = 2**downsample_res
     reg_dims = [dim / ds for dim in input_res]
 
-    logger.info(f"Downsample res: {ds}, reg dims: {reg_dims}")
+    logger.debug(f"Downsample res: {ds}, reg dims: {reg_dims}")
 
     # get orientation information
     orient = utils.get_orientation(orientation)
@@ -544,25 +551,25 @@ def cell_quantification(
     scaled_cells = scale_cells(raw_cells, scaling)
     orient_cells = scaled_cells[:, swapped]
 
-    logger.info(
+    logger.debug(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
 
-    logger.info("Converting oriented cells into ANTs physical space")
+    logger.debug("Converting oriented cells into ANTs physical space")
     template_params = utils.get_template_info(image_files["smartspim_template"])
     ants_cells = convert_to_ants_space(template_params, orient_cells)
 
-    logger.info("Registering Cells to SmartSPIM template")
+    logger.debug("Registering Cells to SmartSPIM template")
     template_cells = apply_transforms_to_points(
         ants_cells, template_transforms, invert=(True, False)
     )
 
-    logger.info("Convert template cells into CCF space and orientation")
+    logger.debug("Convert template cells into CCF space and orientation")
     ccf_pts = apply_transforms_to_points(
         template_cells, ccf_transforms, invert=(True, False)
     )
 
-    logger.info("Convert cells back into index space")
+    logger.debug("Convert cells back into index space")
     ccf_params = utils.get_template_info(image_files["ccf_template"])
     ccf_cells = convert_from_ants_space(ccf_params, ccf_pts)
 
@@ -591,7 +598,7 @@ def cell_quantification(
         cells_cropped, metrics_cropped, save_path, logger
     )
 
-    logger.info("Calculating cell counts per brain region and generating CSV")
+    logger.debug("Calculating cell counts per brain region and generating CSV")
 
     # count cells
     count_df = count.create_counts(cells_cropped, metrics_cropped)
@@ -822,7 +829,9 @@ def main(
     profile_process.daemon = True
     profile_process.start()
 
-    start_time = time.time()
+    start_date_time = datetime.now(timezone.utc)
+    resource_monitor = utils.ResourceMonitor(interval_seconds=30).start()
+
     # Calculate cell counts per region
     csv_path, transformed_cells_path = cell_quantification(
         logger=logger,
@@ -839,7 +848,7 @@ def main(
         f'{smartspim_config["input_params"]["ccf_transforms_path"]}/OMEZarr/image.zarr/0/'
     )
 
-    logger.info("Calculating Registration Metrics on Image")
+    logger.debug("Calculating Registration Metrics on Image")
     metric_params = {
         "region_list": smartspim_config["region_list"],
         "reference_microns_ccf": smartspim_config["input_params"][
@@ -876,31 +885,40 @@ def main(
             logger=logger,
         )
     except Exception as e:
-        print(f"There was a problem generating the neuroglancer link: {e}")
+        logger.error("There was a problem generating the neuroglancer link: %s", e)
 
-    end_time = time.time()
+    resource_monitor.stop()
+    end_date_time = datetime.now(timezone.utc)
 
     data_processes.append(
         DataProcess(
-            name=ProcessName.IMAGE_CELL_QUANTIFICATION,
-            software_version=__version__,
-            start_date_time=start_time,
-            end_date_time=end_time,
-            input_location=f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0",
-            output_location=str(output_quantified_folder),
-            outputs={"output_folder": str(output_quantified_folder)},
-            code_url="https://github.com/AllenNeuralDynamics/aind-smartspim-quantification",
-            code_version=__version__,
-            parameters=smartspim_config,
-            notes="The output folder contains the precomputed format to visualize and count cells per CCF region",
+            process_type=ProcessName.IMAGE_CELL_QUANTIFICATION,
+            name=f"Image cell quantification - {smartspim_config['channel_name']}",
+            stage=ProcessStage.PROCESSING,
+            code=Code(url=__url__, name=__title__, version=__version__),
+            experimenters=__maintainers__,
+            pipeline_name=__pipeline_name__,
+            start_date_time=start_date_time,
+            end_date_time=end_date_time,
+            output_path=str(output_quantified_folder),
+            output_parameters={
+                "input_location": f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0",
+                "output_folder": str(output_quantified_folder),
+                "duration_seconds": (end_date_time - start_date_time).total_seconds(),
+            },
+            resources=resource_monitor.to_resource_usage(
+                cpu_cores=int(utils.get_cpu_limit())
+            ),
+            notes="Maps detected cells to Allen CCF V3 Atlas regions.",
         )
     )
 
     utils.generate_processing(
         data_processes=data_processes,
         dest_processing=metadata_folder,
-        processor_full_name=__maintainers__[0],
+        pipeline_name=__pipeline_name__,
         pipeline_version=__pipeline_version__,
+        pipeline_url="https://github.com/AllenNeuralDynamics/aind-smartspim-pipeline",
     )
 
     # Getting tracked resources and plotting image
