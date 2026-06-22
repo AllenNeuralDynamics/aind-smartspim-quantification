@@ -437,7 +437,6 @@ def _run_quantification(
             "gpuMemoryLimit": 1500000000,
         }
 
-        logger.debug("Pipeline config: %s", pipeline_config)
         logger.debug("Data folder contents: %s", os.listdir(data_folder))
 
         # combine configs
