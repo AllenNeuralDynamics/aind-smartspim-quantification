@@ -19,7 +19,7 @@ from aind_smartspim_quantification import (__pipeline_name__, __title__,
                                             __version__, quantification)
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
-from aind_smartspim_quantification.utils import utils
+from aind_smartspim_quantification.utils import metadata_compat, utils
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,9 @@ def get_data_config(
 
     smartspim_dataset = data_description_dict["name"]
     institution_abbreviation = data_description_dict["institution"]["abbreviation"]
+    subject_id = data_description_dict.get("subject_id")
 
-    return derivatives_dict, smartspim_dataset, institution_abbreviation
+    return derivatives_dict, smartspim_dataset, institution_abbreviation, subject_id
 
 
 def set_up_pipeline_parameters(
@@ -236,9 +237,12 @@ def run():
             f"We miss the following files in the capsule input: {missing_files}"
         )
 
-    pipeline_config, smartspim_dataset_name, institute_abbreviation = get_data_config(
-        data_folder=data_folder
-    )
+    (
+        pipeline_config,
+        smartspim_dataset_name,
+        institute_abbreviation,
+        subject_id,
+    ) = get_data_config(data_folder=data_folder)
 
     quantification_info = pipeline_config.get("quantification")
 
@@ -264,6 +268,7 @@ def run():
             quantification_info=quantification_info,
             smartspim_dataset_name=smartspim_dataset_name,
             institute_abbreviation=institute_abbreviation,
+            subject_id=subject_id,
         )
     except Exception:
         duration_seconds = round(time.monotonic() - start_time, 3)
@@ -298,6 +303,7 @@ def _run_quantification(
     quantification_info: Optional[dict],
     smartspim_dataset_name: str,
     institute_abbreviation: str,
+    subject_id: Optional[str] = None,
 ):
     """
     Runs the smartspim quantification processing body.
@@ -426,7 +432,7 @@ def _run_quantification(
             "base_url": "https://neuroglancer-demo.appspot.com/#!",
             "crossSectionScale": 1,
             "projectionScale": 512,
-            "orientation": acquisition_configs,
+            "orientation": metadata_compat.normalize_orientation(acquisition_configs),
             "dimensions": {
                 "z": [ccf_res_microns * 10**-6, "m"],
                 "y": [ccf_res_microns * 10**-6, "m"],
@@ -448,7 +454,10 @@ def _run_quantification(
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
-        smartspim_config["input_params"]["orientation"] = acquisition_configs["axes"]
+        smartspim_config["subject_id"] = subject_id
+        smartspim_config["input_params"]["orientation"] = metadata_compat.get_acquisition_axes(
+            acquisition_configs
+        )
 
         # get zarr resolution
         zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"

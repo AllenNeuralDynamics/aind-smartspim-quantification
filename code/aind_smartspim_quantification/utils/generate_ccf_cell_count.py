@@ -399,7 +399,8 @@ def generate_25_um_ccf_cells(
 
     json_state = {
         "ng_link": f"{ng_configs['base_url']}{ng_path}",
-        "title": smartspim_config["name"].split("_")[1],
+        "title": smartspim_config.get("subject_id")
+        or smartspim_config["name"].split("_")[1],
         "dimensions": ng_configs["dimensions"],
         "crossSectionOrientation": [0.0, 1.0, 0.0, 0.0],
         "crossSectionScale": ng_configs["crossSectionScale"],
