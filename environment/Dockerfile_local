@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN conda create -n quantification python=3.11 --no-default-packages -y && \
     /opt/conda/envs/quantification/bin/pip install --no-cache-dir \
     "setuptools<82" \
-    numpy==1.26.4 \
+    "numpy>=2.0,<3" \
     dask[distributed]==2026.6.0 \
     zarr==3.1.6 \
     numcodecs==0.16.5 \
