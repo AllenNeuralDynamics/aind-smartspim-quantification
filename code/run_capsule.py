@@ -2,7 +2,7 @@
 Main file to execute the smartspim segmentation
 in code ocean
 """
-
+import argparse
 import logging
 import os
 import sys
@@ -73,7 +73,10 @@ def get_data_config(
 
 
 def set_up_pipeline_parameters(
-    pipeline_config: dict, default_config: dict, smartspim_dataset_name: str
+    pipeline_config: dict,
+    default_config: dict,
+    smartspim_dataset_name: str,
+    bucket_name: str
 ):
     """
     Sets up smartspim stitching parameters that come from the
@@ -97,6 +100,9 @@ def set_up_pipeline_parameters(
     smartspim_dataset_name: str
         Smartspim dataset name for the s3 path.
 
+    bucket_name: str
+        Bucket name where the fused is located.
+
     Returns
     -----------
     Dict
@@ -109,7 +115,7 @@ def set_up_pipeline_parameters(
 
     # Added to handle registration testing
     s3_path = pipeline_config["stitching"].get(
-        "s3_path", f"s3://aind-open-data/{smartspim_dataset_name}"
+        "s3_path", f"s3://{bucket_name}/{smartspim_dataset_name}"
     )
 
     if "test" in s3_path:
@@ -200,20 +206,39 @@ def get_estimated_downsample(
     downsample_res = int(min(downsample_versions))
     return round(np.log2(downsample_res))
 
+def _parse_args() -> argparse.Namespace:
+    ap = argparse.ArgumentParser(
+        prog="run_capsule.py",
+        description="SmartSPIM pipeline quantification.",
+    )
+    ap.add_argument(
+        "mode",
+        help="Quantification stage: detect|reprocess",
+    )
+    ap.add_argument(
+        "bucket_name",
+        nargs="?",
+        default=None,
+        metavar="bucket_name",
+        help=(
+            "S3 bucket or local path (positional; Nextflow compat). "
+        ),
+    )
+    return ap.parse_args()
 
 def run():
     """
     Main function to execute the smartspim quantification
     in code ocean
     """
+    args = _parse_args()
+    mode = args.mode.casefold()
+    bucket_name = args.bucket_name.casefold()
 
     # Absolute paths of common Code Ocean folders
     data_folder = os.path.abspath("../data")
     results_folder = os.path.abspath("../results")
     scratch_folder = os.path.abspath("../scratch")
-
-    mode = str(sys.argv[1:])
-    mode = mode.replace("[", "").replace("]", "").casefold()
 
     process_name = f"{__title__}-{mode}"
     setup_logging(
@@ -268,6 +293,7 @@ def run():
             quantification_info=quantification_info,
             smartspim_dataset_name=smartspim_dataset_name,
             institute_abbreviation=institute_abbreviation,
+            bucket_name=bucket_name,
             subject_id=subject_id,
         )
     except Exception:
@@ -303,6 +329,7 @@ def _run_quantification(
     quantification_info: Optional[dict],
     smartspim_dataset_name: str,
     institute_abbreviation: str,
+    bucket_name: str,
     subject_id: Optional[str] = None,
 ):
     """
@@ -331,6 +358,9 @@ def _run_quantification(
 
     smartspim_dataset_name: str
         Name of the smartspim dataset
+
+    bucket_name: str
+        Bucket where the fused data is located.
 
     institute_abbreviation: str
         Institution abbreviation for the dataset
@@ -450,6 +480,7 @@ def _run_quantification(
             pipeline_config=pipeline_config,
             default_config=default_config,
             smartspim_dataset_name=smartspim_dataset_name,
+            bucket_name=bucket_name,
         )
 
         smartspim_config["name"] = smartspim_dataset_name
