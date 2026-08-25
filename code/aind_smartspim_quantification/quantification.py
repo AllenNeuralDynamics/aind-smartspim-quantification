@@ -861,6 +861,7 @@ def main(
         "image_path": image_path,
         "registered_path": registered_zarr,
     }
+    logger.debug(f"Image path {image_path} - Registered path: {registered_zarr}")
 
     metrics = quantification_metrics(**metric_params)
 
