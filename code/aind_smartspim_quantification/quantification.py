@@ -26,14 +26,8 @@ from aind_data_schema.core.processing import DataProcess, ProcessStage
 from aind_data_schema_models.process_names import ProcessName
 from tqdm import tqdm
 
-from .__init__ import (
-    __maintainers__,
-    __pipeline_name__,
-    __pipeline_version__,
-    __title__,
-    __url__,
-    __version__,
-)
+from .__init__ import (__maintainers__, __pipeline_name__,
+                       __pipeline_version__, __title__, __url__, __version__)
 from ._shared.types import PathLike
 from .utils import generate_ccf_cell_count as gcc
 from .utils import utils
@@ -385,6 +379,7 @@ def generate_neuroglancer_link(
     ccf_cells_precomputed_output: PathLike,
     cells_precomputed_output: PathLike,
     smartspim_config: dict,
+    bucket_name: str,
     logger: logging.Logger,
 ):
     """
@@ -407,6 +402,8 @@ def generate_neuroglancer_link(
         location to save the precomputed annotation layer
     smartspim_config : dict
         parameterizations from capsules
+    bucket_name : str
+        name of the bucket where the precomputed data is stored
     logger : logging.Logger
         logging object
 
@@ -435,7 +432,7 @@ def generate_neuroglancer_link(
         smartspim_config=smartspim_config,
         dynamic_range=dynamic_range,
         logger=logger,
-        bucket="aind-open-data",
+        bucket=bucket_name,
     )
 
 
@@ -664,6 +661,16 @@ def quantification_metrics(
         metrics for regions reverse transforms and nmi
 
     """
+    if not Path(image_path).exists():
+        raise FileNotFoundError(
+            f"Could not find image zarr path for metrics: {image_path}"
+        )
+
+    if not Path(registered_path).exists():
+        raise FileNotFoundError(
+            f"Could not find registered zarr path for metrics: {registered_path}"
+        )
+
     ccf_dir = os.path.dirname(os.path.realpath(__file__))
     count = utils.CellCounts(ccf_dir, reference_microns_ccf)
     region_info = count.get_metric_region_info(region_list)
@@ -765,6 +772,7 @@ def main(
     output_quantified_folder: PathLike,
     intermediate_quantified_folder: PathLike,
     smartspim_config: dict,
+    bucket_name: str,
 ):
     """
     This function quantifies detected cells
@@ -787,6 +795,9 @@ def main(
     smartspim_config: dict
         Dictionary with the smartspim configuration
         for that dataset
+
+    bucket_name: str
+        Name of the bucket where the precomputed data is stored
 
     """
     data_processes = []
@@ -858,10 +869,10 @@ def main(
         "image_files": smartspim_config["input_params"]["image_files"],
         "orientation": smartspim_config["input_params"]["orientation"],
         "reverse_scaling": smartspim_config["reverse_scaling"],
-        "image_path": image_path,
-        "registered_path": registered_zarr,
+        "image_path": str(image_path),
+        "registered_path": str(registered_zarr),
     }
-    logger.debug(f"Image path {image_path} - Registered path: {registered_zarr}")
+    logger.info(f"Image path {image_path} - Registered path: {registered_zarr}")
 
     metrics = quantification_metrics(**metric_params)
 
@@ -883,6 +894,7 @@ def main(
             ccf_cells_precomputed_output=ccf_cells_precomputed,
             cells_precomputed_output=cells_precomputed,
             smartspim_config=smartspim_config,
+            bucket_name=bucket_name,
             logger=logger,
         )
     except Exception as e:

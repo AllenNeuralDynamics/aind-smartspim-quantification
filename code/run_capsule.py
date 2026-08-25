@@ -2,6 +2,7 @@
 Main file to execute the smartspim segmentation
 in code ocean
 """
+
 import argparse
 import logging
 import os
@@ -13,13 +14,12 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import zarr
-from log_schema import setup_logging
-
 from aind_smartspim_quantification import (__pipeline_name__, __title__,
-                                            __version__, quantification)
+                                           __version__, quantification)
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
 from aind_smartspim_quantification.utils import metadata_compat, utils
+from log_schema import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ def set_up_pipeline_parameters(
     pipeline_config: dict,
     default_config: dict,
     smartspim_dataset_name: str,
-    bucket_name: str
+    bucket_name: str,
 ):
     """
     Sets up smartspim stitching parameters that come from the
@@ -206,6 +206,7 @@ def get_estimated_downsample(
     downsample_res = int(min(downsample_versions))
     return round(np.log2(downsample_res))
 
+
 def _parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         prog="run_capsule.py",
@@ -220,11 +221,10 @@ def _parse_args() -> argparse.Namespace:
         nargs="?",
         default=None,
         metavar="bucket_name",
-        help=(
-            "S3 bucket or local path (positional; Nextflow compat). "
-        ),
+        help=("S3 bucket or local path (positional; Nextflow compat). "),
     )
     return ap.parse_args()
+
 
 def run():
     """
@@ -486,8 +486,8 @@ def _run_quantification(
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
         smartspim_config["subject_id"] = subject_id
-        smartspim_config["input_params"]["orientation"] = metadata_compat.get_acquisition_axes(
-            acquisition_configs
+        smartspim_config["input_params"]["orientation"] = (
+            metadata_compat.get_acquisition_axes(acquisition_configs)
         )
 
         # get zarr resolution
@@ -510,6 +510,7 @@ def _run_quantification(
             output_quantified_folder=Path(results_folder),
             intermediate_quantified_folder=Path(scratch_folder),
             smartspim_config=smartspim_config,
+            bucket_name=bucket_name,
         )
 
     else:

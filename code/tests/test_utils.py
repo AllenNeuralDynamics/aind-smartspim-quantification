@@ -14,7 +14,6 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
-
 from aind_smartspim_quantification.utils import utils
 
 

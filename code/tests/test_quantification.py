@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-
 from aind_smartspim_quantification import quantification
 
 

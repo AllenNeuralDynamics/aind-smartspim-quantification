@@ -29,12 +29,9 @@ import psutil
 import ray
 import vedo
 from aind_data_schema.components.identifiers import Code
-from aind_data_schema.core.processing import (
-    DataProcess,
-    Processing,
-    ResourceTimestamped,
-    ResourceUsage,
-)
+from aind_data_schema.core.processing import (DataProcess, Processing,
+                                              ResourceTimestamped,
+                                              ResourceUsage)
 from aind_data_schema_models.units import MemoryUnit
 from skimage import measure
 from sklearn.metrics import normalized_mutual_info_score
@@ -671,8 +668,11 @@ def __read_zarr_image(image_path: PathLike):
         Dask array with the zarr image
     """
 
-    image_path = str(image_path)
-    signal_array = da.from_zarr(image_path)
+    try:
+        image_path = str(image_path)
+        signal_array = da.from_zarr(image_path)
+    except Exception as e:
+        raise RuntimeError(f"Failed to read zarr image from {image_path}: {e}")
 
     return signal_array
 
@@ -765,10 +765,14 @@ class ResourceMonitor:
         while not self._stop_event.is_set():
             now = datetime.now(timezone.utc)
             self._cpu_usage.append(
-                ResourceTimestamped(timestamp=now, usage=psutil.cpu_percent(interval=None))
+                ResourceTimestamped(
+                    timestamp=now, usage=psutil.cpu_percent(interval=None)
+                )
             )
             self._ram_usage.append(
-                ResourceTimestamped(timestamp=now, usage=psutil.virtual_memory().percent)
+                ResourceTimestamped(
+                    timestamp=now, usage=psutil.virtual_memory().percent
+                )
             )
             self._stop_event.wait(self._interval)
 
