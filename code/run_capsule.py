@@ -308,13 +308,14 @@ def run():
             bucket_name=bucket_name,
             subject_id=subject_id,
         )
-    except Exception:
+    except Exception as e:
         duration_seconds = round(time.monotonic() - start_time, 3)
         logger.error(
             "SmartSPIM quantification stage failed",
             exc_info=True,
             extra={
                 "event_type": "stage_failure",
+                "error": f"{type(e).__name__}: {e}",
                 "dataset_name": dataset_name,
                 "asset_name": smartspim_dataset_name,
                 "subject_id": subject_id,
