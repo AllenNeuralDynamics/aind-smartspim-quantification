@@ -1,5 +1,5 @@
 """
-Main file to execute the smartspim segmentation
+Main file to execute the smartspim quantification
 in code ocean
 """
 
@@ -270,16 +270,28 @@ def run():
     ) = get_data_config(data_folder=data_folder)
 
     quantification_info = pipeline_config.get("quantification")
+    dataset_name = metadata_compat.get_raw_dataset_name(smartspim_dataset_name)
 
     logger.info(
         "SmartSPIM quantification stage started",
         extra={
             "event_type": "stage_start",
-            "dataset_name": smartspim_dataset_name,
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
             "data_folder": data_folder,
             "results_folder": results_folder,
             "scratch_folder": scratch_folder,
             "mode": mode,
+        },
+    )
+    logger.info(
+        f"Processing derived asset {smartspim_dataset_name}",
+        extra={
+            "event_type": "dataset_resolved",
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
         },
     )
 
@@ -303,7 +315,9 @@ def run():
             exc_info=True,
             extra={
                 "event_type": "stage_failure",
-                "dataset_name": smartspim_dataset_name,
+                "dataset_name": dataset_name,
+                "asset_name": smartspim_dataset_name,
+                "subject_id": subject_id,
                 "duration_seconds": duration_seconds,
             },
         )
@@ -314,7 +328,9 @@ def run():
         "SmartSPIM quantification stage completed",
         extra={
             "event_type": "stage_complete",
-            "dataset_name": smartspim_dataset_name,
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
             "duration_seconds": duration_seconds,
         },
     )
@@ -472,8 +488,6 @@ def _run_quantification(
             "rank": 3,
             "gpuMemoryLimit": 1500000000,
         }
-
-        logger.debug("Data folder contents: %s", os.listdir(data_folder))
 
         # combine configs
         smartspim_config = set_up_pipeline_parameters(

@@ -1,5 +1,6 @@
 """Parameters used in the quantification script"""
 
+import logging
 import os
 from pathlib import Path
 
@@ -83,7 +84,10 @@ def get_yaml_config(filename: str) -> dict:
     try:
         with open(filename, "r") as stream:
             config = yaml.safe_load(stream)
-    except Exception as error:
-        print(error)
+    except Exception:
+        logging.getLogger(__name__).error(
+            f"Could not load the quantification config from {filename}",
+            exc_info=True,
+        )
 
     return config

@@ -11,7 +11,6 @@ import copy
 import logging
 import multiprocessing
 import os
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Union
@@ -24,7 +23,6 @@ import xmltodict
 from aind_data_schema.components.identifiers import Code
 from aind_data_schema.core.processing import DataProcess, ProcessStage
 from aind_data_schema_models.process_names import ProcessName
-from tqdm import tqdm
 
 from .__init__ import (__maintainers__, __pipeline_name__,
                        __pipeline_version__, __title__, __url__, __version__)
@@ -552,21 +550,21 @@ def cell_quantification(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
 
-    logger.debug("Converting oriented cells into ANTs physical space")
+    logger.info("Converting oriented cells into ANTs physical space")
     template_params = utils.get_template_info(image_files["smartspim_template"])
     ants_cells = convert_to_ants_space(template_params, orient_cells)
 
-    logger.debug("Registering Cells to SmartSPIM template")
+    logger.info("Registering Cells to SmartSPIM template")
     template_cells = apply_transforms_to_points(
         ants_cells, template_transforms, invert=(True, False)
     )
 
-    logger.debug("Convert template cells into CCF space and orientation")
+    logger.info("Convert template cells into CCF space and orientation")
     ccf_pts = apply_transforms_to_points(
         template_cells, ccf_transforms, invert=(True, False)
     )
 
-    logger.debug("Convert cells back into index space")
+    logger.info("Convert cells back into index space")
     ccf_params = utils.get_template_info(image_files["ccf_template"])
     ccf_cells = convert_from_ants_space(ccf_params, ccf_pts)
 
@@ -595,7 +593,7 @@ def cell_quantification(
         cells_cropped, metrics_cropped, save_path, logger
     )
 
-    logger.debug("Calculating cell counts per brain region and generating CSV")
+    logger.info("Calculating cell counts per brain region and generating CSV")
 
     # count cells
     count_df = count.create_counts(cells_cropped, metrics_cropped)
@@ -897,8 +895,10 @@ def main(
             bucket_name=bucket_name,
             logger=logger,
         )
-    except Exception as e:
-        logger.error("There was a problem generating the neuroglancer link: %s", e)
+    except Exception:
+        logger.error(
+            "There was a problem generating the neuroglancer link", exc_info=True
+        )
 
     resource_monitor.stop()
     end_date_time = datetime.now(timezone.utc)
