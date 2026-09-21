@@ -43,7 +43,7 @@ def get_ccf(
 
     """
 
-    # location of the data from tissueCyte, but can get our own and change to aind-open-data
+    # location of the data from tissueCyte, but can get our own and change to des bucket
 
     s3_resource = boto3.resource("s3")
     bucket = s3_resource.Bucket(bucket_name)
@@ -354,7 +354,7 @@ def generate_25_um_ccf_cells(
     smartspim_config: dict,
     dynamic_range: list,
     logger: logging.Logger,
-    bucket="aind-open-data",
+    bucket: str,
 ):
     """
     Creates the json state dictionary for the neuroglancer link
@@ -399,7 +399,8 @@ def generate_25_um_ccf_cells(
 
     json_state = {
         "ng_link": f"{ng_configs['base_url']}{ng_path}",
-        "title": smartspim_config["name"].split("_")[1],
+        "title": smartspim_config.get("subject_id")
+        or smartspim_config["name"].split("_")[1],
         "dimensions": ng_configs["dimensions"],
         "crossSectionOrientation": [0.0, 1.0, 0.0, 0.0],
         "crossSectionScale": ng_configs["crossSectionScale"],

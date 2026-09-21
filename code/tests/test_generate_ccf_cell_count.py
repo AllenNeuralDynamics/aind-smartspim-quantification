@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 import dask.array as da
 import numpy as np
-
 from aind_smartspim_quantification.utils import generate_ccf_cell_count as gcc
 
 

@@ -1,8 +1,9 @@
 """
-Main file to execute the smartspim segmentation
+Main file to execute the smartspim quantification
 in code ocean
 """
 
+import argparse
 import logging
 import os
 import sys
@@ -13,13 +14,12 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import zarr
-from log_schema import setup_logging
-
 from aind_smartspim_quantification import (__pipeline_name__, __title__,
-                                            __version__, quantification)
+                                           __version__, quantification)
 from aind_smartspim_quantification.params.quantification_params import \
     get_yaml_config
-from aind_smartspim_quantification.utils import utils
+from aind_smartspim_quantification.utils import metadata_compat, utils
+from log_schema import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +67,16 @@ def get_data_config(
 
     smartspim_dataset = data_description_dict["name"]
     institution_abbreviation = data_description_dict["institution"]["abbreviation"]
+    subject_id = data_description_dict.get("subject_id")
 
-    return derivatives_dict, smartspim_dataset, institution_abbreviation
+    return derivatives_dict, smartspim_dataset, institution_abbreviation, subject_id
 
 
 def set_up_pipeline_parameters(
-    pipeline_config: dict, default_config: dict, smartspim_dataset_name: str
+    pipeline_config: dict,
+    default_config: dict,
+    smartspim_dataset_name: str,
+    bucket_name: str,
 ):
     """
     Sets up smartspim stitching parameters that come from the
@@ -96,6 +100,9 @@ def set_up_pipeline_parameters(
     smartspim_dataset_name: str
         Smartspim dataset name for the s3 path.
 
+    bucket_name: str
+        Bucket name where the fused is located.
+
     Returns
     -----------
     Dict
@@ -108,7 +115,7 @@ def set_up_pipeline_parameters(
 
     # Added to handle registration testing
     s3_path = pipeline_config["stitching"].get(
-        "s3_path", f"s3://aind-open-data/{smartspim_dataset_name}"
+        "s3_path", f"s3://{bucket_name}/{smartspim_dataset_name}"
     )
 
     if "test" in s3_path:
@@ -200,19 +207,38 @@ def get_estimated_downsample(
     return round(np.log2(downsample_res))
 
 
+def _parse_args() -> argparse.Namespace:
+    ap = argparse.ArgumentParser(
+        prog="run_capsule.py",
+        description="SmartSPIM pipeline quantification.",
+    )
+    ap.add_argument(
+        "mode",
+        help="Quantification stage: detect|reprocess",
+    )
+    ap.add_argument(
+        "bucket_name",
+        nargs="?",
+        default=None,
+        metavar="bucket_name",
+        help=("S3 bucket or local path (positional; Nextflow compat). "),
+    )
+    return ap.parse_args()
+
+
 def run():
     """
     Main function to execute the smartspim quantification
     in code ocean
     """
+    args = _parse_args()
+    mode = args.mode.casefold()
+    bucket_name = args.bucket_name.casefold()
 
     # Absolute paths of common Code Ocean folders
     data_folder = os.path.abspath("../data")
     results_folder = os.path.abspath("../results")
     scratch_folder = os.path.abspath("../scratch")
-
-    mode = str(sys.argv[1:])
-    mode = mode.replace("[", "").replace("]", "").casefold()
 
     process_name = f"{__title__}-{mode}"
     setup_logging(
@@ -236,21 +262,36 @@ def run():
             f"We miss the following files in the capsule input: {missing_files}"
         )
 
-    pipeline_config, smartspim_dataset_name, institute_abbreviation = get_data_config(
-        data_folder=data_folder
-    )
+    (
+        pipeline_config,
+        smartspim_dataset_name,
+        institute_abbreviation,
+        subject_id,
+    ) = get_data_config(data_folder=data_folder)
 
     quantification_info = pipeline_config.get("quantification")
+    dataset_name = metadata_compat.get_raw_dataset_name(smartspim_dataset_name)
 
     logger.info(
         "SmartSPIM quantification stage started",
         extra={
             "event_type": "stage_start",
-            "dataset_name": smartspim_dataset_name,
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
             "data_folder": data_folder,
             "results_folder": results_folder,
             "scratch_folder": scratch_folder,
             "mode": mode,
+        },
+    )
+    logger.info(
+        f"Processing derived asset {smartspim_dataset_name}",
+        extra={
+            "event_type": "dataset_resolved",
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
         },
     )
 
@@ -264,15 +305,20 @@ def run():
             quantification_info=quantification_info,
             smartspim_dataset_name=smartspim_dataset_name,
             institute_abbreviation=institute_abbreviation,
+            bucket_name=bucket_name,
+            subject_id=subject_id,
         )
-    except Exception:
+    except Exception as e:
         duration_seconds = round(time.monotonic() - start_time, 3)
         logger.error(
             "SmartSPIM quantification stage failed",
             exc_info=True,
             extra={
                 "event_type": "stage_failure",
-                "dataset_name": smartspim_dataset_name,
+                "error": f"{type(e).__name__}: {e}",
+                "dataset_name": dataset_name,
+                "asset_name": smartspim_dataset_name,
+                "subject_id": subject_id,
                 "duration_seconds": duration_seconds,
             },
         )
@@ -283,7 +329,9 @@ def run():
         "SmartSPIM quantification stage completed",
         extra={
             "event_type": "stage_complete",
-            "dataset_name": smartspim_dataset_name,
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
             "duration_seconds": duration_seconds,
         },
     )
@@ -298,6 +346,8 @@ def _run_quantification(
     quantification_info: Optional[dict],
     smartspim_dataset_name: str,
     institute_abbreviation: str,
+    bucket_name: str,
+    subject_id: Optional[str] = None,
 ):
     """
     Runs the smartspim quantification processing body.
@@ -325,6 +375,9 @@ def _run_quantification(
 
     smartspim_dataset_name: str
         Name of the smartspim dataset
+
+    bucket_name: str
+        Bucket where the fused data is located.
 
     institute_abbreviation: str
         Institution abbreviation for the dataset
@@ -426,7 +479,7 @@ def _run_quantification(
             "base_url": "https://neuroglancer-demo.appspot.com/#!",
             "crossSectionScale": 1,
             "projectionScale": 512,
-            "orientation": acquisition_configs,
+            "orientation": metadata_compat.normalize_orientation(acquisition_configs),
             "dimensions": {
                 "z": [ccf_res_microns * 10**-6, "m"],
                 "y": [ccf_res_microns * 10**-6, "m"],
@@ -437,18 +490,20 @@ def _run_quantification(
             "gpuMemoryLimit": 1500000000,
         }
 
-        logger.debug("Data folder contents: %s", os.listdir(data_folder))
-
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
             pipeline_config=pipeline_config,
             default_config=default_config,
             smartspim_dataset_name=smartspim_dataset_name,
+            bucket_name=bucket_name,
         )
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
-        smartspim_config["input_params"]["orientation"] = acquisition_configs["axes"]
+        smartspim_config["subject_id"] = subject_id
+        smartspim_config["input_params"]["orientation"] = (
+            metadata_compat.get_acquisition_axes(acquisition_configs)
+        )
 
         # get zarr resolution
         zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
@@ -470,6 +525,7 @@ def _run_quantification(
             output_quantified_folder=Path(results_folder),
             intermediate_quantified_folder=Path(scratch_folder),
             smartspim_config=smartspim_config,
+            bucket_name=bucket_name,
         )
 
     else:

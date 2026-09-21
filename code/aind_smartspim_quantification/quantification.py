@@ -11,7 +11,6 @@ import copy
 import logging
 import multiprocessing
 import os
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Union
@@ -24,16 +23,9 @@ import xmltodict
 from aind_data_schema.components.identifiers import Code
 from aind_data_schema.core.processing import DataProcess, ProcessStage
 from aind_data_schema_models.process_names import ProcessName
-from tqdm import tqdm
 
-from .__init__ import (
-    __maintainers__,
-    __pipeline_name__,
-    __pipeline_version__,
-    __title__,
-    __url__,
-    __version__,
-)
+from .__init__ import (__maintainers__, __pipeline_name__,
+                       __pipeline_version__, __title__, __url__, __version__)
 from ._shared.types import PathLike
 from .utils import generate_ccf_cell_count as gcc
 from .utils import utils
@@ -385,6 +377,7 @@ def generate_neuroglancer_link(
     ccf_cells_precomputed_output: PathLike,
     cells_precomputed_output: PathLike,
     smartspim_config: dict,
+    bucket_name: str,
     logger: logging.Logger,
 ):
     """
@@ -407,6 +400,8 @@ def generate_neuroglancer_link(
         location to save the precomputed annotation layer
     smartspim_config : dict
         parameterizations from capsules
+    bucket_name : str
+        name of the bucket where the precomputed data is stored
     logger : logging.Logger
         logging object
 
@@ -435,7 +430,7 @@ def generate_neuroglancer_link(
         smartspim_config=smartspim_config,
         dynamic_range=dynamic_range,
         logger=logger,
-        bucket="aind-open-data",
+        bucket=bucket_name,
     )
 
 
@@ -555,21 +550,21 @@ def cell_quantification(
         f"Reorient cells from {orient} to template {template_params['orientation']} "
     )
 
-    logger.debug("Converting oriented cells into ANTs physical space")
+    logger.info("Converting oriented cells into ANTs physical space")
     template_params = utils.get_template_info(image_files["smartspim_template"])
     ants_cells = convert_to_ants_space(template_params, orient_cells)
 
-    logger.debug("Registering Cells to SmartSPIM template")
+    logger.info("Registering Cells to SmartSPIM template")
     template_cells = apply_transforms_to_points(
         ants_cells, template_transforms, invert=(True, False)
     )
 
-    logger.debug("Convert template cells into CCF space and orientation")
+    logger.info("Convert template cells into CCF space and orientation")
     ccf_pts = apply_transforms_to_points(
         template_cells, ccf_transforms, invert=(True, False)
     )
 
-    logger.debug("Convert cells back into index space")
+    logger.info("Convert cells back into index space")
     ccf_params = utils.get_template_info(image_files["ccf_template"])
     ccf_cells = convert_from_ants_space(ccf_params, ccf_pts)
 
@@ -598,7 +593,7 @@ def cell_quantification(
         cells_cropped, metrics_cropped, save_path, logger
     )
 
-    logger.debug("Calculating cell counts per brain region and generating CSV")
+    logger.info("Calculating cell counts per brain region and generating CSV")
 
     # count cells
     count_df = count.create_counts(cells_cropped, metrics_cropped)
@@ -664,6 +659,16 @@ def quantification_metrics(
         metrics for regions reverse transforms and nmi
 
     """
+    if not Path(image_path).exists():
+        raise FileNotFoundError(
+            f"Could not find image zarr path for metrics: {image_path}"
+        )
+
+    if not Path(registered_path).exists():
+        raise FileNotFoundError(
+            f"Could not find registered zarr path for metrics: {registered_path}"
+        )
+
     ccf_dir = os.path.dirname(os.path.realpath(__file__))
     count = utils.CellCounts(ccf_dir, reference_microns_ccf)
     region_info = count.get_metric_region_info(region_list)
@@ -765,6 +770,7 @@ def main(
     output_quantified_folder: PathLike,
     intermediate_quantified_folder: PathLike,
     smartspim_config: dict,
+    bucket_name: str,
 ):
     """
     This function quantifies detected cells
@@ -787,6 +793,9 @@ def main(
     smartspim_config: dict
         Dictionary with the smartspim configuration
         for that dataset
+
+    bucket_name: str
+        Name of the bucket where the precomputed data is stored
 
     """
     data_processes = []
@@ -858,9 +867,10 @@ def main(
         "image_files": smartspim_config["input_params"]["image_files"],
         "orientation": smartspim_config["input_params"]["orientation"],
         "reverse_scaling": smartspim_config["reverse_scaling"],
-        "image_path": image_path,
-        "registered_path": registered_zarr,
+        "image_path": str(image_path),
+        "registered_path": str(registered_zarr),
     }
+    logger.info(f"Image path {image_path} - Registered path: {registered_zarr}")
 
     metrics = quantification_metrics(**metric_params)
 
@@ -882,10 +892,13 @@ def main(
             ccf_cells_precomputed_output=ccf_cells_precomputed,
             cells_precomputed_output=cells_precomputed,
             smartspim_config=smartspim_config,
+            bucket_name=bucket_name,
             logger=logger,
         )
-    except Exception as e:
-        logger.error("There was a problem generating the neuroglancer link: %s", e)
+    except Exception:
+        logger.error(
+            "There was a problem generating the neuroglancer link", exc_info=True
+        )
 
     resource_monitor.stop()
     end_date_time = datetime.now(timezone.utc)
