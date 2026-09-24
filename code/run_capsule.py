@@ -6,18 +6,14 @@ in code ocean
 import argparse
 import logging
 import os
-import sys
 import time
 from glob import glob
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 import numpy as np
-import zarr
-from aind_smartspim_quantification import (__pipeline_name__, __title__,
-                                           __version__, quantification)
-from aind_smartspim_quantification.params.quantification_params import \
-    get_yaml_config
+from aind_smartspim_quantification import __pipeline_name__, __title__, __version__, quantification
+from aind_smartspim_quantification.params.quantification_params import get_yaml_config
 from aind_smartspim_quantification.utils import metadata_compat, utils
 from log_schema import setup_logging
 
@@ -58,12 +54,8 @@ def get_data_config(
     # Doing this because of Code Ocean, ideally we would have
     # a single dataset in the pipeline
 
-    derivatives_dict = utils.read_json_as_dict(
-        glob(f"{data_folder}/{processing_manifest_path}")[0]
-    )
-    data_description_dict = utils.read_json_as_dict(
-        f"{data_folder}/{data_description_path}"
-    )
+    derivatives_dict = utils.read_json_as_dict(glob(f"{data_folder}/{processing_manifest_path}")[0])
+    data_description_dict = utils.read_json_as_dict(f"{data_folder}/{data_description_path}")
 
     smartspim_dataset = data_description_dict["name"]
     institution_abbreviation = data_description_dict["institution"]["abbreviation"]
@@ -131,19 +123,17 @@ def set_up_pipeline_parameters(
     )
 
     if default_config["input_params"]["mode"] == "detect":
-        default_config["input_params"][
-            "detected_cells_csv_path"
-        ] = f"{default_config['cell_segmentation_folder']}/"
+        default_config["input_params"]["detected_cells_csv_path"] = (
+            f"{default_config['cell_segmentation_folder']}/"
+        )
     elif default_config["input_params"]["mode"] == "reprocess":
         default_config["input_params"]["detected_cells_csv_path"] = (
-            s3_seg_path.split("/")[-1]
-            + "/"
-            + default_config["cell_segmentation_folder"]
+            s3_seg_path.split("/")[-1] + "/" + default_config["cell_segmentation_folder"]
         )
 
-    default_config["input_params"][
-        "ccf_transforms_path"
-    ] = f"{default_config['ccf_registration_folder']}/"
+    default_config["input_params"]["ccf_transforms_path"] = (
+        f"{default_config['ccf_registration_folder']}/"
+    )
 
     return default_config
 
@@ -199,9 +189,7 @@ def get_estimated_downsample(
 
     downsample_versions = []
     for idx in range(len(voxel_resolution)):
-        downsample_versions.append(
-            registration_res[idx] // float(voxel_resolution[idx])
-        )
+        downsample_versions.append(registration_res[idx] // float(voxel_resolution[idx]))
 
     downsample_res = int(min(downsample_versions))
     return round(np.log2(downsample_res))
@@ -258,9 +246,7 @@ def run():
     missing_files = validate_capsule_inputs(required_input_elements)
 
     if len(missing_files):
-        raise ValueError(
-            f"We miss the following files in the capsule input: {missing_files}"
-        )
+        raise ValueError(f"We miss the following files in the capsule input: {missing_files}")
 
     (
         pipeline_config,
@@ -389,14 +375,10 @@ def _run_quantification(
 
         # get default configs
         default_config = get_yaml_config(
-            os.path.abspath(
-                "aind_smartspim_quantification/params/default_quantify_configs.yaml"
-            )
+            os.path.abspath("aind_smartspim_quantification/params/default_quantify_configs.yaml")
         )
 
-        ccf_folder = glob(
-            f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}"
-        )
+        ccf_folder = glob(f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}")
 
         if len(ccf_folder):
             ccf_folder = ccf_folder[0]
@@ -420,12 +402,8 @@ def _run_quantification(
 
         # add paths to ls_to_template transforms
         default_config["input_params"]["template_transforms"] = [
-            os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
-            ),
-            os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
-            ),
+            os.path.abspath(glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]),
+            os.path.abspath(glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]),
         ]
 
         # add paths to template_to_ccf transforms
@@ -441,13 +419,9 @@ def _run_quantification(
         # add paths for reverse transforms for calculating metrics
         default_config["reverse_transforms"] = {
             "template_transforms": [
+                os.path.abspath(glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]),
                 os.path.abspath(
-                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
-                ),
-                os.path.abspath(
-                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[
-                        0
-                    ]
+                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
                 ),
             ],
             "ccf_transforms": [
@@ -501,23 +475,23 @@ def _run_quantification(
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
         smartspim_config["subject_id"] = subject_id
-        smartspim_config["input_params"]["orientation"] = (
-            metadata_compat.get_acquisition_axes(acquisition_configs)
+        smartspim_config["input_params"]["orientation"] = metadata_compat.get_acquisition_axes(
+            acquisition_configs
         )
 
         # get zarr resolution
-        zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
+        zarr_attrs_path = (
+            f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
+        )
         zarr_attrs = utils.read_json_as_dict(zarr_attrs_path)
-        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
-            "coordinateTransformations"
-        ][0]["scale"][2:]
+        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0]["coordinateTransformations"][
+            0
+        ]["scale"][2:]
         reg_scale = get_estimated_downsample(acquisition_res)
         reg_res = [float(res) * 2**reg_scale for res in acquisition_res]
 
         smartspim_config["input_params"]["downsample_res"] = reg_scale
-        smartspim_config["input_params"]["scaling"] = [
-            res / ccf_res_microns for res in reg_res
-        ]
+        smartspim_config["input_params"]["scaling"] = [res / ccf_res_microns for res in reg_res]
         smartspim_config["reverse_scaling"] = [ccf_res_microns / res for res in reg_res]
 
         quantification.main(

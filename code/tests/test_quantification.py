@@ -69,9 +69,7 @@ class TestSmartspimQuantification(TestCaseBase):
             "AIBS",
         )
 
-        expected = np.array(
-            [[448 / self.ds, self.reg_dims[1] - 412 / self.ds, 3072 / self.ds]]
-        )
+        expected = np.array([[448 / self.ds, self.reg_dims[1] - 412 / self.ds, 3072 / self.ds]])
         np.testing.assert_array_almost_equal(result, expected, decimal=5)
 
     def test_read_cells_from_csv_file_not_found(self):

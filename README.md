@@ -1,5 +1,7 @@
 # aind-smartspim-quantification
 
+![support](https://img.shields.io/badge/support-supported-brightgreen)
+
 Code for quantifying cell counts for whole brain lighsheet imaging. This repository assumes that we have the cell locations in a XML or CSV and the image transformations from the CCF alignment.
 Please, refer to these repositories to be able to generate these results:
 

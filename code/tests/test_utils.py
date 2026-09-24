@@ -12,8 +12,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-import pandas as pd
-import pandas.testing as pd_testing
 from aind_smartspim_quantification.utils import utils
 
 
@@ -76,9 +74,7 @@ class TestSmartspimUtils(unittest.TestCase):
         test_pts = np.array([[0, 0, 0], [7623, 4072, 5700]], dtype=np.float32)
         test_metrics = np.array([[0.9, 0.1, 1], [0.8, 0.2, 2]], dtype=np.float32)
 
-        result_cells, result_metrics = self.CellCounts.crop_cells(
-            test_pts, test_metrics
-        )
+        result_cells, result_metrics = self.CellCounts.crop_cells(test_pts, test_metrics)
 
         self.assertTrue((result_cells == expected_cells).all())
         self.assertEqual(len(result_metrics), 1)
@@ -193,9 +189,7 @@ class TestSmartspimUtils(unittest.TestCase):
 
         patch_1 = np.ones((9, 9, 9), dtype=int)
         patch_2 = np.ones((9, 9, 9), dtype=int)
-        mask = np.pad(
-            np.ones((3, 3, 3), dtype=int), (3, 3), mode="constant", constant_values=0
-        )
+        mask = np.pad(np.ones((3, 3, 3), dtype=int), (3, 3), mode="constant", constant_values=0)
 
         result = utils.normalized_mutual_information(patch_1, patch_2, mask)
         self.assertEqual(result, expected_result)

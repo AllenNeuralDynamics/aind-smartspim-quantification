@@ -29,9 +29,12 @@ import psutil
 import ray
 import vedo
 from aind_data_schema.components.identifiers import Code
-from aind_data_schema.core.processing import (DataProcess, Processing,
-                                              ResourceTimestamped,
-                                              ResourceUsage)
+from aind_data_schema.core.processing import (
+    DataProcess,
+    Processing,
+    ResourceTimestamped,
+    ResourceUsage,
+)
 from aind_data_schema_models.units import MemoryUnit
 from skimage import measure
 from sklearn.metrics import normalized_mutual_info_score
@@ -40,9 +43,7 @@ from .._shared.types import PathLike
 
 # initialize for multiprocessing
 if not ray.is_initialized():
-    _ray_kwargs = (
-        {"_plasma_directory": "/scratch/"} if os.path.isdir("/scratch/") else {}
-    )
+    _ray_kwargs = {"_plasma_directory": "/scratch/"} if os.path.isdir("/scratch/") else {}
     ray.init(ignore_reinit_error=True, **_ray_kwargs)
 
 
@@ -96,9 +97,7 @@ def parallel_func(shared_coords, shared_metrics, shared_path, struct, struct_tup
             L_mets = copy.copy(mets)
 
             vertices_right = copy.copy(vertices)
-            vertices_right[:, 0] = (
-                vertices_right[:, 0] + (5700 - vertices_right[:, 0]) * 2
-            )
+            vertices_right[:, 0] = vertices_right[:, 0] + (5700 - vertices_right[:, 0]) * 2
 
             R_region = vedo.Mesh([vertices_right, faces])
             location_idx = R_region.inside_points(pts=shared_coords, return_ids=True)
@@ -563,9 +562,7 @@ def get_intensity_mask(vertices, faces, mask, split):
     return mask
 
 
-def normalized_mutual_information(
-    ccf_img: np.array, img: np.array, mask: np.array
-) -> float:
+def normalized_mutual_information(ccf_img: np.array, img: np.array, mask: np.array) -> float:
     """
     Method to compute the mutual information error metric using numpy.
     Note: Check the used dtype to reach a higher precision in the metric
@@ -765,14 +762,10 @@ class ResourceMonitor:
         while not self._stop_event.is_set():
             now = datetime.now(timezone.utc)
             self._cpu_usage.append(
-                ResourceTimestamped(
-                    timestamp=now, usage=psutil.cpu_percent(interval=None)
-                )
+                ResourceTimestamped(timestamp=now, usage=psutil.cpu_percent(interval=None))
             )
             self._ram_usage.append(
-                ResourceTimestamped(
-                    timestamp=now, usage=psutil.virtual_memory().percent
-                )
+                ResourceTimestamped(timestamp=now, usage=psutil.virtual_memory().percent)
             )
             self._stop_event.wait(self._interval)
 
@@ -1014,7 +1007,7 @@ def get_cpu_limit():
 
         container_cpus = cfs_quota_us // cfs_period_us
 
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         container_cpus = 0
 
     # For physical machine, the `cfs_quota_us` could be '-1'
@@ -1097,9 +1090,7 @@ def print_system_information(logger: logging.Logger):
     logger.info(f"SLURM ID: {slurm_id}")
     logger.info(f"SLURM GPUs: {os.environ.get('SLURM_JOB_GPUS')}")
     logger.info(f"SLURM CPUs: {os.environ.get('SLURM_JOB_CPUS_PER_NODE')}")
-    logger.info(
-        f"SLURM variables {[( k, v ) for k, v in os.environ.items() if 'SLURM' in k]}"
-    )
+    logger.info(f"SLURM variables {[(k, v) for k, v in os.environ.items() if 'SLURM' in k]}")
 
     logger.info(f"{sep} System Information {sep}")
     uname = platform.uname()
@@ -1114,9 +1105,7 @@ def print_system_information(logger: logging.Logger):
     logger.info(f"{sep} Boot Time {sep}")
     boot_time_timestamp = psutil.boot_time()
     bt = datetime.fromtimestamp(boot_time_timestamp)
-    logger.info(
-        f"Boot Time: {bt.year}/{bt.month}/{bt.day} {bt.hour}:{bt.minute}:{bt.second}"
-    )
+    logger.info(f"Boot Time: {bt.year}/{bt.month}/{bt.day} {bt.hour}:{bt.minute}:{bt.second}")
 
     # CPU info
     logger.info(f"{sep} CPU Info {sep}")
@@ -1196,9 +1185,7 @@ def create_logger(output_log_path: PathLike):
 
     file_handler = logging.FileHandler(LOGS_FILE, "a")
     file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s - %(levelname)s : %(message)s", datefmt="%Y-%m-%d %H:%M"
-        )
+        logging.Formatter("%(asctime)s - %(levelname)s : %(message)s", datefmt="%Y-%m-%d %H:%M")
     )
     logging.getLogger().addHandler(file_handler)
 
@@ -1231,9 +1218,7 @@ def check_path_instance(obj: object) -> bool:
     return False
 
 
-def save_dict_as_json(
-    filename: str, dictionary: dict, verbose: Optional[bool] = False
-) -> None:
+def save_dict_as_json(filename: str, dictionary: dict, verbose: Optional[bool] = False) -> None:
     """
     Saves a dictionary as a json file.
 

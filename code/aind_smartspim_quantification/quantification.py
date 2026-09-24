@@ -16,16 +16,20 @@ from pathlib import Path
 from typing import List, Union
 
 import ants
-import boto3
 import numpy as np
 import pandas as pd
-import xmltodict
 from aind_data_schema.components.identifiers import Code
 from aind_data_schema.core.processing import DataProcess, ProcessStage
 from aind_data_schema_models.process_names import ProcessName
 
-from .__init__ import (__maintainers__, __pipeline_name__,
-                       __pipeline_version__, __title__, __url__, __version__)
+from .__init__ import (
+    __maintainers__,
+    __pipeline_name__,
+    __pipeline_version__,
+    __title__,
+    __url__,
+    __version__,
+)
 from ._shared.types import PathLike
 from .utils import generate_ccf_cell_count as gcc
 from .utils import utils
@@ -166,9 +170,7 @@ def scale_cells(cells, scale):
 
     scaled_cells = []
     for cell in cells:
-        scaled_cells.append(
-            (cell[0] * scale[0], cell[1] * scale[1], cell[2] * scale[2])
-        )
+        scaled_cells.append((cell[0] * scale[0], cell[1] * scale[1], cell[2] * scale[2]))
 
     return np.array(scaled_cells)
 
@@ -234,9 +236,7 @@ def convert_from_ants_space(template_parameters: dict, cells: np.ndarray):
     return pts
 
 
-def apply_transforms_to_points(
-    ants_pts: np.ndarray, transforms: list, invert: tuple
-) -> np.ndarray:
+def apply_transforms_to_points(ants_pts: np.ndarray, transforms: list, invert: tuple) -> np.ndarray:
     """
     Takes the cell locations that have been converted into the correct
     physical space needed for the provided transforms and registers the points
@@ -256,9 +256,7 @@ def apply_transforms_to_points(
     """
 
     df = pd.DataFrame(ants_pts, columns=["x", "y", "z"])
-    transformed_pts = ants.apply_transforms_to_points(
-        3, df, transforms, whichtoinvert=invert
-    )
+    transformed_pts = ants.apply_transforms_to_points(3, df, transforms, whichtoinvert=invert)
 
     return np.array(transformed_pts)
 
@@ -285,12 +283,8 @@ def create_visualization_folders(save_path: PathLike):
 
     utils.create_folder(f"{save_path}/visualization")
 
-    ccf_cells_precomputed_output = os.path.join(
-        save_path, "visualization/ccf_cell_precomputed"
-    )
-    cells_precomputed_output = os.path.join(
-        save_path, "visualization/cell_points_precomputed"
-    )
+    ccf_cells_precomputed_output = os.path.join(save_path, "visualization/ccf_cell_precomputed")
+    cells_precomputed_output = os.path.join(save_path, "visualization/cell_points_precomputed")
 
     # Creating folders
 
@@ -525,9 +519,7 @@ def cell_quantification(
     orient = utils.get_orientation(orientation)
     template_params = utils.get_template_info(image_files["smartspim_template"])
 
-    _, swapped, mat = utils.get_orientation_transform(
-        orient, template_params["orientation"]
-    )
+    _, swapped, mat = utils.get_orientation_transform(orient, template_params["orientation"])
 
     # Getting cell locations and ccf transformations
     detected_cells_csv_path = Path(detected_cells_csv_path)
@@ -546,9 +538,7 @@ def cell_quantification(
     scaled_cells = scale_cells(raw_cells, scaling)
     orient_cells = scaled_cells[:, swapped]
 
-    logger.debug(
-        f"Reorient cells from {orient} to template {template_params['orientation']} "
-    )
+    logger.debug(f"Reorient cells from {orient} to template {template_params['orientation']} ")
 
     logger.info("Converting oriented cells into ANTs physical space")
     template_params = utils.get_template_info(image_files["smartspim_template"])
@@ -560,9 +550,7 @@ def cell_quantification(
     )
 
     logger.info("Convert template cells into CCF space and orientation")
-    ccf_pts = apply_transforms_to_points(
-        template_cells, ccf_transforms, invert=(True, False)
-    )
+    ccf_pts = apply_transforms_to_points(template_cells, ccf_transforms, invert=(True, False))
 
     logger.info("Convert cells back into index space")
     ccf_params = utils.get_template_info(image_files["ccf_template"])
@@ -580,9 +568,7 @@ def cell_quantification(
 
     # removing cells that are outside the brain and getting metrics
     metrics = get_cell_metrics(
-        cell_likelihoods_path=detected_cells_csv_path.joinpath(
-            "proposals/cell_likelihoods.csv"
-        )
+        cell_likelihoods_path=detected_cells_csv_path.joinpath("proposals/cell_likelihoods.csv")
     )
     cells_array = np.array(cells_transformed) * reference_microns_ccf
     cells_cropped, metrics_cropped = count.crop_cells(cells_array, metrics)
@@ -597,9 +583,7 @@ def cell_quantification(
 
     # count cells
     count_df = count.create_counts(cells_cropped, metrics_cropped)
-    metadata_df = pd.read_csv(
-        os.path.join(params_dir, "params/region_metadata.csv"), index_col=0
-    )
+    metadata_df = pd.read_csv(os.path.join(params_dir, "params/region_metadata.csv"), index_col=0)
     out_df = pd.merge(metadata_df, count_df, on="Acronym")
 
     fname = "cell_count_by_region.csv"
@@ -660,9 +644,7 @@ def quantification_metrics(
 
     """
     if not Path(image_path).exists():
-        raise FileNotFoundError(
-            f"Could not find image zarr path for metrics: {image_path}"
-        )
+        raise FileNotFoundError(f"Could not find image zarr path for metrics: {image_path}")
 
     if not Path(registered_path).exists():
         raise FileNotFoundError(
@@ -688,9 +670,7 @@ def quantification_metrics(
 
         if region_info[region][1] == "hemi":
             vertices_right = copy.copy(verts)
-            vertices_right[:, 0] = (
-                vertices_right[:, 0] + (5700 - vertices_right[:, 0]) * 2
-            )
+            vertices_right[:, 0] = vertices_right[:, 0] + (5700 - vertices_right[:, 0]) * 2
 
             verts = np.vstack((verts, vertices_right))
 
@@ -703,9 +683,7 @@ def quantification_metrics(
             scaled_verts[:, [2, 1, 0]], faces, mask, split=region_info[region][1]
         )
 
-        norm_mutual_info = utils.normalized_mutual_information(
-            ccf_img, registered_img, mask
-        )
+        norm_mutual_info = utils.normalized_mutual_information(ccf_img, registered_img, mask)
 
         # Transform to template
         ccf_params = utils.get_template_info(image_files["ccf_template"])
@@ -725,9 +703,7 @@ def quantification_metrics(
 
         # convert to orientation of the zarr image
         orient = utils.get_orientation(orientation)
-        _, swapped, mat = utils.get_orientation_transform(
-            template_params["orientation"], orient
-        )
+        _, swapped, mat = utils.get_orientation_transform(template_params["orientation"], orient)
         converted_verts = converted_verts[:, swapped]
         out_verts = scale_cells(converted_verts, reverse_scaling)
 
@@ -799,7 +775,9 @@ def main(
 
     """
     data_processes = []
-    metadata_path_res = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0/.zarray"
+    metadata_path_res = (
+        f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/0/.zarray"
+    )
 
     input_res = utils.read_json_as_dict(metadata_path_res)["shape"]
 
@@ -854,15 +832,13 @@ def main(
     )
 
     registered_zarr = os.path.abspath(
-        f'{smartspim_config["input_params"]["ccf_transforms_path"]}/OMEZarr/image.zarr/0/'
+        f"{smartspim_config['input_params']['ccf_transforms_path']}/OMEZarr/image.zarr/0/"
     )
 
     logger.debug("Calculating Registration Metrics on Image")
     metric_params = {
         "region_list": smartspim_config["region_list"],
-        "reference_microns_ccf": smartspim_config["input_params"][
-            "reference_microns_ccf"
-        ],
+        "reference_microns_ccf": smartspim_config["input_params"]["reference_microns_ccf"],
         "reverse_transforms": smartspim_config["reverse_transforms"],
         "image_files": smartspim_config["input_params"]["image_files"],
         "orientation": smartspim_config["input_params"]["orientation"],
@@ -874,7 +850,7 @@ def main(
 
     metrics = quantification_metrics(**metric_params)
 
-    metric_path = os.path.abspath(f'{smartspim_config["save_path"]}/region_metrics.csv')
+    metric_path = os.path.abspath(f"{smartspim_config['save_path']}/region_metrics.csv")
 
     metrics.to_csv(metric_path)
 
@@ -896,9 +872,7 @@ def main(
             logger=logger,
         )
     except Exception:
-        logger.error(
-            "There was a problem generating the neuroglancer link", exc_info=True
-        )
+        logger.error("There was a problem generating the neuroglancer link", exc_info=True)
 
     resource_monitor.stop()
     end_date_time = datetime.now(timezone.utc)
@@ -919,9 +893,7 @@ def main(
                 "output_folder": str(output_quantified_folder),
                 "duration_seconds": (end_date_time - start_date_time).total_seconds(),
             },
-            resources=resource_monitor.to_resource_usage(
-                cpu_cores=int(utils.get_cpu_limit())
-            ),
+            resources=resource_monitor.to_resource_usage(cpu_cores=int(utils.get_cpu_limit())),
             notes="Maps detected cells to Allen CCF V3 Atlas regions.",
         )
     )

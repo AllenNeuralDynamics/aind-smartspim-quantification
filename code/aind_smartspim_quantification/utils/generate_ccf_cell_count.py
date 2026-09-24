@@ -89,9 +89,7 @@ def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
         xml_file = xml_reader.read()
 
     xml_dict = xmltodict.parse(xml_file)
-    cell_data = xml_dict["CellCounter_Marker_File"]["Marker_Data"]["Marker_Type"][
-        "Marker"
-    ]
+    cell_data = xml_dict["CellCounter_Marker_File"]["Marker_Data"]["Marker_Type"]["Marker"]
 
     new_cell_data = []
     for cell in cell_data:
@@ -227,9 +225,7 @@ def generate_precomputed_cells(cells, precompute_path, configs):
 
     metadata = {
         "@type": "neuroglancer_annotations_v1",
-        "dimensions": dict(
-            (key, configs["dimensions"][key]) for key in ("z", "y", "x")
-        ),
+        "dimensions": dict((key, configs["dimensions"][key]) for key in ("z", "y", "x")),
         "lower_bound": [float(x) for x in l_bounds],
         "upper_bound": [float(x) for x in u_bounds],
         "annotation_type": "point",
@@ -318,9 +314,7 @@ def generate_cff_segmentation(
     for r, irow in df_ccf.iterrows():
         if irow["struct"] in include:
             keep_ids.append(str(irow["id"]))
-            total = df_count.loc[
-                df_count["Acronym"] == irow["struct"], ["Total"]
-            ].values.squeeze()
+            total = df_count.loc[df_count["Acronym"] == irow["struct"], ["Total"]].values.squeeze()
             keep_struct.append(irow["struct"] + " cells: " + str(total))
 
     # download ccf procomputed format
@@ -391,16 +385,13 @@ def generate_25_um_ccf_cells(
     create_folder(output_precomputed)
     print(f"Output cells precomputed: {output_precomputed}")
 
-    generate_precomputed_cells(
-        cells_df, precompute_path=output_precomputed, configs=ng_configs
-    )
+    generate_precomputed_cells(cells_df, precompute_path=output_precomputed, configs=ng_configs)
 
     ng_path = f"s3://{bucket}/{smartspim_config['name']}/image_cell_quantification/{smartspim_config['channel_name']}/visualization/neuroglancer_config.json"
 
     json_state = {
         "ng_link": f"{ng_configs['base_url']}{ng_path}",
-        "title": smartspim_config.get("subject_id")
-        or smartspim_config["name"].split("_")[1],
+        "title": smartspim_config.get("subject_id") or smartspim_config["name"].split("_")[1],
         "dimensions": ng_configs["dimensions"],
         "crossSectionOrientation": [0.0, 1.0, 0.0, 0.0],
         "crossSectionScale": ng_configs["crossSectionScale"],

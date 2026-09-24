@@ -36,9 +36,7 @@ class QuantificationParams(ArgSchema):
 
     stitched_s3_path = Str(
         required=True,
-        metadata={
-            "description": "Path where the stitched data is located in the cloud"
-        },
+        metadata={"description": "Path where the stitched data is located in the cloud"},
     )
 
     save_path = Str(
