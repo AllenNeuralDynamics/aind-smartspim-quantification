@@ -43,7 +43,7 @@ def get_ccf(
 
     """
 
-    # location of the data from tissueCyte, but can get our own and change to aind-open-data
+    # location of the data from tissueCyte, but can get our own and change to des bucket
 
     s3_resource = boto3.resource("s3")
     bucket = s3_resource.Bucket(bucket_name)
@@ -89,9 +89,7 @@ def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
         xml_file = xml_reader.read()
 
     xml_dict = xmltodict.parse(xml_file)
-    cell_data = xml_dict["CellCounter_Marker_File"]["Marker_Data"]["Marker_Type"][
-        "Marker"
-    ]
+    cell_data = xml_dict["CellCounter_Marker_File"]["Marker_Data"]["Marker_Type"]["Marker"]
 
     new_cell_data = []
     for cell in cell_data:
@@ -128,7 +126,7 @@ def calculate_dynamic_range(image_path: PathLike, percentile=99, level=3):
     """
 
     img = da.from_zarr(image_path, str(level)).squeeze()
-    range_max = da.percentile(img.flatten(), percentile).compute()[0]
+    range_max = da.percentile(img.flatten(), percentile).compute().item()
     window_max = int(range_max * 1.5)
     dynamic_ranges = [int(range_max), window_max]
 
@@ -227,9 +225,7 @@ def generate_precomputed_cells(cells, precompute_path, configs):
 
     metadata = {
         "@type": "neuroglancer_annotations_v1",
-        "dimensions": dict(
-            (key, configs["dimensions"][key]) for key in ("z", "y", "x")
-        ),
+        "dimensions": dict((key, configs["dimensions"][key]) for key in ("z", "y", "x")),
         "lower_bound": [float(x) for x in l_bounds],
         "upper_bound": [float(x) for x in u_bounds],
         "annotation_type": "point",
@@ -318,9 +314,7 @@ def generate_cff_segmentation(
     for r, irow in df_ccf.iterrows():
         if irow["struct"] in include:
             keep_ids.append(str(irow["id"]))
-            total = df_count.loc[
-                df_count["Acronym"] == irow["struct"], ["Total"]
-            ].values.squeeze()
+            total = df_count.loc[df_count["Acronym"] == irow["struct"], ["Total"]].values.squeeze()
             keep_struct.append(irow["struct"] + " cells: " + str(total))
 
     # download ccf procomputed format
@@ -354,7 +348,7 @@ def generate_25_um_ccf_cells(
     smartspim_config: dict,
     dynamic_range: list,
     logger: logging.Logger,
-    bucket="aind-open-data",
+    bucket: str,
 ):
     """
     Creates the json state dictionary for the neuroglancer link
@@ -391,15 +385,13 @@ def generate_25_um_ccf_cells(
     create_folder(output_precomputed)
     print(f"Output cells precomputed: {output_precomputed}")
 
-    generate_precomputed_cells(
-        cells_df, precompute_path=output_precomputed, configs=ng_configs
-    )
+    generate_precomputed_cells(cells_df, precompute_path=output_precomputed, configs=ng_configs)
 
     ng_path = f"s3://{bucket}/{smartspim_config['name']}/image_cell_quantification/{smartspim_config['channel_name']}/visualization/neuroglancer_config.json"
 
     json_state = {
         "ng_link": f"{ng_configs['base_url']}{ng_path}",
-        "title": smartspim_config["name"].split("_")[1],
+        "title": smartspim_config.get("subject_id") or smartspim_config["name"].split("_")[1],
         "dimensions": ng_configs["dimensions"],
         "crossSectionOrientation": [0.0, 1.0, 0.0, 0.0],
         "crossSectionScale": ng_configs["crossSectionScale"],
@@ -450,20 +442,3 @@ def generate_25_um_ccf_cells(
         json.dump(json_state, outfile, indent=2)
 
     return output_path
-
-
-if __name__ == "__main__":
-    params = {
-        "ccf_cells_precomputed": {  # Parameters to generate CCF + Cells precomputed format
-            "input_path": "/Users/camilo.laiton/Downloads/cell_count_by_region.csv",  # Path where the cell_count.csv is located
-            "output_path": "/Users/camilo.laiton/repositories/new_ng_link/aind-ng-link/src/ng_link/scripts/CCF_Cells_Test",  # Path where we want to save the CCF + cell location precomputed
-            "ccf_reference_path": None,  # Path where the CCF reference csv is located
-        },
-        "cells_precomputed": {  # Parameters to generate cell points precomputed format
-            "xml_path": "/Users/camilo.laiton/Downloads/transformed_cells.xml",  # Path where the cell points are located
-            "output_precomputed": "/Users/camilo.laiton/repositories/new_ng_link/aind-ng-link/src/ng_link/scripts/Cells_Test",  # Path where the precomputed format will be stored
-        },
-        "zarr_path": "s3://aind-open-data/SmartSPIM_656374_2023-01-27_12-41-55_stitched_2023-01-31_17-28-34/processed/CCF_Atlas_Registration/Ex_445_Em_469/OMEZarr/image.zarr",  # Path where the 25 um zarr image is stored, output from CCF capsule
-    }
-
-    generate_25_um_ccf_cells(params)

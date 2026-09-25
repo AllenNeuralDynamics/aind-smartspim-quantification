@@ -1,21 +1,23 @@
 """
-Main file to execute the smartspim segmentation
+Main file to execute the smartspim quantification
 in code ocean
 """
 
+import argparse
+import logging
 import os
-import sys
+import time
 from glob import glob
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
-import zarr
-from aind_smartspim_quantification import quantification
-from aind_smartspim_quantification.params.quantification_params import \
-    get_yaml_config
-from aind_smartspim_quantification.utils import utils
-from ome_zarr.reader import Reader
+from aind_smartspim_quantification import __pipeline_name__, __title__, __version__, quantification
+from aind_smartspim_quantification.params.quantification_params import get_yaml_config
+from aind_smartspim_quantification.utils import metadata_compat, utils
+from log_schema import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_data_config(
@@ -52,21 +54,21 @@ def get_data_config(
     # Doing this because of Code Ocean, ideally we would have
     # a single dataset in the pipeline
 
-    derivatives_dict = utils.read_json_as_dict(
-        glob(f"{data_folder}/{processing_manifest_path}")[0]
-    )
-    data_description_dict = utils.read_json_as_dict(
-        f"{data_folder}/{data_description_path}"
-    )
+    derivatives_dict = utils.read_json_as_dict(glob(f"{data_folder}/{processing_manifest_path}")[0])
+    data_description_dict = utils.read_json_as_dict(f"{data_folder}/{data_description_path}")
 
     smartspim_dataset = data_description_dict["name"]
     institution_abbreviation = data_description_dict["institution"]["abbreviation"]
+    subject_id = data_description_dict.get("subject_id")
 
-    return derivatives_dict, smartspim_dataset, institution_abbreviation
+    return derivatives_dict, smartspim_dataset, institution_abbreviation, subject_id
 
 
 def set_up_pipeline_parameters(
-    pipeline_config: dict, default_config: dict, smartspim_dataset_name: str
+    pipeline_config: dict,
+    default_config: dict,
+    smartspim_dataset_name: str,
+    bucket_name: str,
 ):
     """
     Sets up smartspim stitching parameters that come from the
@@ -90,6 +92,9 @@ def set_up_pipeline_parameters(
     smartspim_dataset_name: str
         Smartspim dataset name for the s3 path.
 
+    bucket_name: str
+        Bucket name where the fused is located.
+
     Returns
     -----------
     Dict
@@ -102,7 +107,7 @@ def set_up_pipeline_parameters(
 
     # Added to handle registration testing
     s3_path = pipeline_config["stitching"].get(
-        "s3_path", f"s3://aind-open-data/{smartspim_dataset_name}"
+        "s3_path", f"s3://{bucket_name}/{smartspim_dataset_name}"
     )
 
     if "test" in s3_path:
@@ -118,19 +123,17 @@ def set_up_pipeline_parameters(
     )
 
     if default_config["input_params"]["mode"] == "detect":
-        default_config["input_params"][
-            "detected_cells_csv_path"
-        ] = f"{default_config['cell_segmentation_folder']}/"
+        default_config["input_params"]["detected_cells_csv_path"] = (
+            f"{default_config['cell_segmentation_folder']}/"
+        )
     elif default_config["input_params"]["mode"] == "reprocess":
         default_config["input_params"]["detected_cells_csv_path"] = (
-            s3_seg_path.split("/")[-1]
-            + "/"
-            + default_config["cell_segmentation_folder"]
+            s3_seg_path.split("/")[-1] + "/" + default_config["cell_segmentation_folder"]
         )
 
-    default_config["input_params"][
-        "ccf_transforms_path"
-    ] = f"{default_config['ccf_registration_folder']}/"
+    default_config["input_params"]["ccf_transforms_path"] = (
+        f"{default_config['ccf_registration_folder']}/"
+    )
 
     return default_config
 
@@ -186,41 +189,29 @@ def get_estimated_downsample(
 
     downsample_versions = []
     for idx in range(len(voxel_resolution)):
-        downsample_versions.append(
-            registration_res[idx] // float(voxel_resolution[idx])
-        )
+        downsample_versions.append(registration_res[idx] // float(voxel_resolution[idx]))
 
     downsample_res = int(min(downsample_versions))
     return round(np.log2(downsample_res))
 
 
-def get_zarr_metadata(zarr_path):
-    """
-    Opens a ZARR file and retrieves its metadata.
-
-    Parameters
-    ----------
-    zarr_path : str
-        file path to zarr file.
-
-    Returns
-    -------
-    image_node : ome_zarr.reader.Node
-        The image node of the ZARR file.
-    zarr_meta : dict
-        Metadata of the ZARR file.
-    """
-
-    store = zarr.DirectoryStore(zarr_path)
-    reader = Reader(store)
-
-    # nodes may include images, labels etc
-    nodes = list(reader())
-
-    # first node will be the image pixel data
-    image_node = nodes[0]
-    zarr_meta = image_node.metadata
-    return image_node, zarr_meta
+def _parse_args() -> argparse.Namespace:
+    ap = argparse.ArgumentParser(
+        prog="run_capsule.py",
+        description="SmartSPIM pipeline quantification.",
+    )
+    ap.add_argument(
+        "mode",
+        help="Quantification stage: detect|reprocess",
+    )
+    ap.add_argument(
+        "bucket_name",
+        nargs="?",
+        default=None,
+        metavar="bucket_name",
+        help=("S3 bucket or local path (positional; Nextflow compat). "),
+    )
+    return ap.parse_args()
 
 
 def run():
@@ -228,14 +219,25 @@ def run():
     Main function to execute the smartspim quantification
     in code ocean
     """
+    args = _parse_args()
+    mode = args.mode.casefold()
+    bucket_name = args.bucket_name.casefold()
 
     # Absolute paths of common Code Ocean folders
     data_folder = os.path.abspath("../data")
     results_folder = os.path.abspath("../results")
     scratch_folder = os.path.abspath("../scratch")
 
-    mode = str(sys.argv[1:])
-    mode = mode.replace("[", "").replace("]", "").casefold()
+    process_name = f"{__title__}-{mode}"
+    setup_logging(
+        model={
+            "pipeline_name": __pipeline_name__,
+            "process_name": process_name,
+            "software_name": __title__,
+            "software_version": __version__,
+        }
+    )
+    start_time = time.monotonic()
 
     # It is assumed that these files
     # will be in the data folder
@@ -244,30 +246,139 @@ def run():
     missing_files = validate_capsule_inputs(required_input_elements)
 
     if len(missing_files):
-        raise ValueError(
-            f"We miss the following files in the capsule input: {missing_files}"
-        )
+        raise ValueError(f"We miss the following files in the capsule input: {missing_files}")
 
-    pipeline_config, smartspim_dataset_name, institute_abbreviation = get_data_config(
-        data_folder=data_folder
-    )
+    (
+        pipeline_config,
+        smartspim_dataset_name,
+        institute_abbreviation,
+        subject_id,
+    ) = get_data_config(data_folder=data_folder)
 
     quantification_info = pipeline_config.get("quantification")
+    dataset_name = metadata_compat.get_raw_dataset_name(smartspim_dataset_name)
+
+    logger.info(
+        "SmartSPIM quantification stage started",
+        extra={
+            "event_type": "stage_start",
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
+            "data_folder": data_folder,
+            "results_folder": results_folder,
+            "scratch_folder": scratch_folder,
+            "mode": mode,
+        },
+    )
+    logger.info(
+        f"Processing derived asset {smartspim_dataset_name}",
+        extra={
+            "event_type": "dataset_resolved",
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
+        },
+    )
+
+    try:
+        _run_quantification(
+            mode=mode,
+            data_folder=data_folder,
+            results_folder=results_folder,
+            scratch_folder=scratch_folder,
+            pipeline_config=pipeline_config,
+            quantification_info=quantification_info,
+            smartspim_dataset_name=smartspim_dataset_name,
+            institute_abbreviation=institute_abbreviation,
+            bucket_name=bucket_name,
+            subject_id=subject_id,
+        )
+    except Exception as e:
+        duration_seconds = round(time.monotonic() - start_time, 3)
+        logger.error(
+            "SmartSPIM quantification stage failed",
+            exc_info=True,
+            extra={
+                "event_type": "stage_failure",
+                "error": f"{type(e).__name__}: {e}",
+                "dataset_name": dataset_name,
+                "asset_name": smartspim_dataset_name,
+                "subject_id": subject_id,
+                "duration_seconds": duration_seconds,
+            },
+        )
+        raise
+
+    duration_seconds = round(time.monotonic() - start_time, 3)
+    logger.info(
+        "SmartSPIM quantification stage completed",
+        extra={
+            "event_type": "stage_complete",
+            "dataset_name": dataset_name,
+            "asset_name": smartspim_dataset_name,
+            "subject_id": subject_id,
+            "duration_seconds": duration_seconds,
+        },
+    )
+
+
+def _run_quantification(
+    mode: str,
+    data_folder: str,
+    results_folder: str,
+    scratch_folder: str,
+    pipeline_config: dict,
+    quantification_info: Optional[dict],
+    smartspim_dataset_name: str,
+    institute_abbreviation: str,
+    bucket_name: str,
+    subject_id: Optional[str] = None,
+):
+    """
+    Runs the smartspim quantification processing body.
+
+    Parameters
+    -----------
+    mode: str
+        Capsule run mode, either "detect" or "reprocess"
+
+    data_folder: str
+        Absolute path to the Code Ocean data folder
+
+    results_folder: str
+        Absolute path to the Code Ocean results folder
+
+    scratch_folder: str
+        Absolute path to the Code Ocean scratch folder
+
+    pipeline_config: dict
+        Pipeline configuration coming from the processing manifest
+
+    quantification_info: Optional[dict]
+        Quantification section of the pipeline configuration,
+        None if this dataset has no quantification channels
+
+    smartspim_dataset_name: str
+        Name of the smartspim dataset
+
+    bucket_name: str
+        Bucket where the fused data is located.
+
+    institute_abbreviation: str
+        Institution abbreviation for the dataset
+    """
 
     if quantification_info is not None:
-        print("Pipeline config: ", pipeline_config)
-        print("Data folder contents: ", os.listdir(data_folder))
+        logger.debug("Pipeline config: %s", pipeline_config)
+        logger.debug("Data folder contents: %s", os.listdir(data_folder))
 
         # get default configs
         default_config = get_yaml_config(
-            os.path.abspath(
-                "aind_smartspim_quantification/params/default_quantify_configs.yaml"
-            )
+            os.path.abspath("aind_smartspim_quantification/params/default_quantify_configs.yaml")
         )
 
-        ccf_folder = glob(
-            f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}"
-        )
+        ccf_folder = glob(f"{data_folder}/ccf_{pipeline_config['quantification']['channel']}")
 
         if len(ccf_folder):
             ccf_folder = ccf_folder[0]
@@ -282,21 +393,17 @@ def run():
             )
             default_config["input_params"]["mode"] = "detect"
         elif "reprocess" in mode:
-            default_config[
-                "cell_segmentation_folder"
-            ] = f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+            default_config["cell_segmentation_folder"] = (
+                f"image_cell_segmentation/{pipeline_config['quantification']['channel']}"
+            )
             default_config["input_params"]["mode"] = "reprocess"
         else:
             raise NotImplementedError(f"The mode {mode} has not been implemented")
 
         # add paths to ls_to_template transforms
         default_config["input_params"]["template_transforms"] = [
-            os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
-            ),
-            os.path.abspath(
-                glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]
-            ),
+            os.path.abspath(glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]),
+            os.path.abspath(glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1InverseWarp.nii.gz")[0]),
         ]
 
         # add paths to template_to_ccf transforms
@@ -312,13 +419,9 @@ def run():
         # add paths for reverse transforms for calculating metrics
         default_config["reverse_transforms"] = {
             "template_transforms": [
+                os.path.abspath(glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]),
                 os.path.abspath(
-                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_1Warp.nii.gz")[0]
-                ),
-                os.path.abspath(
-                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[
-                        0
-                    ]
+                    glob(f"{data_folder}/ccf_*/ls_to_template_SyN_0GenericAffine.mat")[0]
                 ),
             ],
             "ccf_transforms": [
@@ -350,7 +453,7 @@ def run():
             "base_url": "https://neuroglancer-demo.appspot.com/#!",
             "crossSectionScale": 1,
             "projectionScale": 512,
-            "orientation": acquisition_configs,
+            "orientation": metadata_compat.normalize_orientation(acquisition_configs),
             "dimensions": {
                 "z": [ccf_res_microns * 10**-6, "m"],
                 "y": [ccf_res_microns * 10**-6, "m"],
@@ -361,33 +464,34 @@ def run():
             "gpuMemoryLimit": 1500000000,
         }
 
-        print("Pipeline config: ", pipeline_config)
-        print("Data folder contents: ", os.listdir(data_folder))
-
         # combine configs
         smartspim_config = set_up_pipeline_parameters(
             pipeline_config=pipeline_config,
             default_config=default_config,
             smartspim_dataset_name=smartspim_dataset_name,
+            bucket_name=bucket_name,
         )
 
         smartspim_config["name"] = smartspim_dataset_name
         smartspim_config["institute_abbreviation"] = institute_abbreviation
-        smartspim_config["input_params"]["orientation"] = acquisition_configs["axes"]
+        smartspim_config["subject_id"] = subject_id
+        smartspim_config["input_params"]["orientation"] = metadata_compat.get_acquisition_axes(
+            acquisition_configs
+        )
 
         # get zarr resolution
-        zarr_attrs_path = f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
+        zarr_attrs_path = (
+            f"{smartspim_config['fused_folder']}/{smartspim_config['channel_name']}.zarr/.zattrs"
+        )
         zarr_attrs = utils.read_json_as_dict(zarr_attrs_path)
-        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0][
-            "coordinateTransformations"
-        ][0]["scale"][2:]
+        acquisition_res = zarr_attrs["multiscales"][0]["datasets"][0]["coordinateTransformations"][
+            0
+        ]["scale"][2:]
         reg_scale = get_estimated_downsample(acquisition_res)
         reg_res = [float(res) * 2**reg_scale for res in acquisition_res]
 
         smartspim_config["input_params"]["downsample_res"] = reg_scale
-        smartspim_config["input_params"]["scaling"] = [
-            res / ccf_res_microns for res in reg_res
-        ]
+        smartspim_config["input_params"]["scaling"] = [res / ccf_res_microns for res in reg_res]
         smartspim_config["reverse_scaling"] = [ccf_res_microns / res for res in reg_res]
 
         quantification.main(
@@ -395,10 +499,11 @@ def run():
             output_quantified_folder=Path(results_folder),
             intermediate_quantified_folder=Path(scratch_folder),
             smartspim_config=smartspim_config,
+            bucket_name=bucket_name,
         )
 
     else:
-        print(f"No quantification channels, pipeline config: {pipeline_config}")
+        logger.info("No quantification channels, pipeline config: %s", pipeline_config)
         utils.save_dict_as_json(
             filename=f"{results_folder}/segmentation_processing_manifest_empty.json",
             dictionary=pipeline_config,
