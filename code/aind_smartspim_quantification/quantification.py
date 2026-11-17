@@ -34,6 +34,7 @@ from ._shared.types import PathLike
 from .utils import generate_ccf_cell_count as gcc
 from .utils import utils
 
+RESOURCE_MONITOR_INTERVAL_SECONDS = 600.0
 
 def read_cells_from_xml(
     cell_likelihoods_path: Union[str, "PathLike"],
@@ -817,7 +818,7 @@ def main(
     profile_process.start()
 
     start_date_time = datetime.now(timezone.utc)
-    resource_monitor = utils.ResourceMonitor(interval_seconds=30).start()
+    resource_monitor = utils.ResourceMonitor(interval_seconds=RESOURCE_MONITOR_INTERVAL_SECONDS).start()
 
     # Calculate cell counts per region
     csv_path, transformed_cells_path = cell_quantification(
